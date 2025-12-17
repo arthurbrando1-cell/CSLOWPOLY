@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CS Web | TPS Multiplayer Low-Poly</title>
+    <title>CS Web | TPS Multiplayer Low-Poly (Detalhado)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
 
     <style>
-        /* CSS Básico para Tela Cheia e HUD */
+        /* ... (CSS mantido) ... */
         body { margin: 0; overflow: hidden; background-color: #111; font-family: sans-serif; }
         canvas { display: block; }
 
-        /* Crosshair: Mantenha o Crosshair no centro para mirar */
         #crosshair {
             position: fixed;
             top: 50%;
@@ -28,7 +27,6 @@
             z-index: 10;
         }
 
-        /* Menu de Lobby */
         #lobby {
             position: fixed;
             top: 0;
@@ -44,7 +42,6 @@
             z-index: 20;
         }
 
-        /* HUD (Killfeed, Vida, etc.) */
         #hud {
             position: fixed;
             bottom: 10px;
@@ -62,10 +59,10 @@
     <div id="hud">HP: <span id="hp">100</span> | Munição: 99</div>
 
     <div id="lobby">
-        <h2>CS Web Low-Poly (TPS)</h2>
+        <h2>CS Web | TPS Low-Poly (Detalhado)</h2>
         <input type="text" id="nickInput" placeholder="Seu Nickname" value="PlayerJS" style="padding: 10px; margin: 10px;"/>
         <button id="joinButton" style="padding: 10px 20px; font-size: 1.1em; cursor: pointer;">Entrar na Partida</button>
-        <p style="margin-top: 20px; color: #aaa;">Usando Firebase para multiplayer. Agora em Terceira Pessoa!</p>
+        <p style="margin-top: 20px; color: #aaa;">Agora com Colisão Básica e Arma Detalhada!</p>
     </div>
 
     <script>
@@ -92,6 +89,7 @@
         const others = {}; 
         
         const PLAYER_HEIGHT = 1.8;
+        const PLAYER_RADIUS = 0.25; // Usado para a colisão
         const PLAYER_SPEED = 5;
         const GRAVITY = -9.8;
         
@@ -99,39 +97,84 @@
         const DAMAGE_DEFAULT = 15;
         
         // =================================================================
-        //                 MÓDULO DE MODELAGEM 3D
+        //                 MÓDULO DE MODELAGEM 3D (PERSONAGEM E ARMA)
         // =================================================================
 
         function createPlayerMesh(color) {
             const group = new THREE.Group();
             
             // 1. Corpo (Cilindro)
-            const bodyGeo = new THREE.CylinderGeometry(0.2, 0.2, PLAYER_HEIGHT, 16);
+            const bodyGeo = new THREE.CylinderGeometry(PLAYER_RADIUS, PLAYER_RADIUS, PLAYER_HEIGHT, 16);
             const bodyMat = new THREE.MeshPhongMaterial({ color: color });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
             
             // 2. Cabeça (Esfera)
-            const headGeo = new THREE.SphereGeometry(0.2, 16, 16);
-            const headMat = new THREE.MeshPhongMaterial({ color: 0xffe0bd }); // Cor de pele simples
+            const headGeo = new THREE.SphereGeometry(PLAYER_RADIUS, 16, 16);
+            const headMat = new THREE.MeshPhongMaterial({ color: 0xffe0bd }); 
             const head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = PLAYER_HEIGHT / 2 + 0.2;
+            head.position.y = PLAYER_HEIGHT / 2 + PLAYER_RADIUS;
 
             // 3. Olhar (Placeholder para direção de rotação)
             const sightGeo = new THREE.BoxGeometry(0.05, 0.05, 0.1);
             const sightMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
             const sight = new THREE.Mesh(sightGeo, sightMat);
-            sight.position.set(0, head.position.y, -0.2);
-            head.add(sight);
-            
+            sight.position.set(0, 0, -PLAYER_RADIUS);
+            head.add(sight); // Anexado à cabeça
+
             group.add(body);
             group.add(head);
-            group.position.y = PLAYER_HEIGHT / 2; // Centraliza a base do boneco no chão
+            group.position.y = PLAYER_HEIGHT / 2;
             
             return group;
         }
+        
+        function createDetailedWeapon() {
+            const weaponGroup = new THREE.Group();
+            const material = new THREE.MeshStandardMaterial({ color: 0x222222 }); 
+            const metalMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 }); 
+
+            // 1. Cano (Cilindro Fino)
+            const barrel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.03, 0.03, 0.6, 12),
+                metalMaterial
+            );
+            barrel.rotation.z = Math.PI / 2; 
+            barrel.position.set(0.3, 0.1, 0);
+            weaponGroup.add(barrel);
+            
+            // 2. Corpo Principal (Caixa)
+            const receiver = new THREE.Mesh(
+                new THREE.BoxGeometry(0.08, 0.15, 0.5),
+                material
+            );
+            receiver.position.set(0, 0.05, -0.15);
+            weaponGroup.add(receiver);
+
+            // 3. Coronha (Parte traseira)
+            const stock = new THREE.Mesh(
+                new THREE.BoxGeometry(0.05, 0.1, 0.3),
+                material
+            );
+            stock.position.set(0, 0.05, 0.3);
+            weaponGroup.add(stock);
+
+            // 4. Mira (Pequeno cubo no topo)
+            const scope = new THREE.Mesh(
+                new THREE.BoxGeometry(0.03, 0.03, 0.1),
+                metalMaterial
+            );
+            scope.position.set(0, 0.15, -0.3);
+            weaponGroup.add(scope);
+            
+            // Centraliza o ponto de "mira" (ponta do cano)
+            weaponGroup.rotation.y = Math.PI / 2; // Gira para que o cano aponte para a frente (Z negativo)
+            weaponGroup.position.set(0.3, -0.2, -0.3); // Posição para segurar na mão direita
+
+            return weaponGroup;
+        }
 
         // =================================================================
-        //                 MÓDULO DE FÍSICA E MOVIMENTO (TPS)
+        //                 MÓDULO DE FÍSICA E MOVIMENTO (TPS COM COLISÃO)
         // =================================================================
         
         class PlayerController {
@@ -145,20 +188,16 @@
                 this.fireRate = 200; 
                 this.currentSpeed = PLAYER_SPEED;
                 
-                // Mesh: Agora visível e com formato de boneco
-                this.mesh = createPlayerMesh(0x00ff00); // Boneco verde
-                this.cameraDistance = 3; // Distância da câmera em terceira pessoa
+                this.mesh = createPlayerMesh(0x00ff00); 
+                this.cameraDistance = 3; 
+                this.collisionOffset = 0.05; // Margem de segurança na colisão
 
-                // Armas: Adicione um cubo como arma simples (Placeholder)
-                const weaponGeo = new THREE.BoxGeometry(0.1, 0.1, 0.5);
-                const weaponMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
-                this.weaponMesh = new THREE.Mesh(weaponGeo, weaponMat);
-                this.weaponMesh.position.set(0, 0.1, -0.5); // Posição relativa ao corpo (mão)
-                this.mesh.getObjectByName('head').add(this.weaponMesh); // Anexa a arma ao corpo/cabeça
+                this.weaponMesh = createDetailedWeapon();
+                this.mesh.getObjectByName('head').add(this.weaponMesh);
             }
 
+            // ... (handleKeyEvents e enablePointerLock mantidos) ...
             handleKeyEvents() {
-                // ... (Lógica de Teclas e Mouse Down para Tiro - igual à anterior) ...
                 document.addEventListener('keydown', (e) => { 
                     this.keys[e.code] = true; 
                     if (e.code === 'ShiftLeft') this.currentSpeed = PLAYER_SPEED * 1.8;
@@ -167,6 +206,7 @@
                     this.keys[e.code] = false; 
                     if (e.code === 'ShiftLeft') this.currentSpeed = PLAYER_SPEED;
                 });
+                this.currentSpeed = PLAYER_SPEED;
                 document.addEventListener('mousedown', (e) => {
                     if (document.pointerLockElement === document.body && e.button === 0) { 
                         this.shoot();
@@ -178,49 +218,42 @@
                 document.body.requestPointerLock();
                 document.addEventListener('mousemove', (e) => {
                     if (document.pointerLockElement === document.body) {
-                        // Rotação horizontal (Y) afeta o corpo do mesh
                         this.mesh.rotation.y -= e.movementX * 0.002;
-                        
-                        // Rotação vertical (X) afeta a câmera (ajusta o pitch)
                         this.camera.rotation.x -= e.movementY * 0.002;
                         this.camera.rotation.x = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, this.camera.rotation.x));
                     }
                 });
             }
             
-            // LÓGICA DE TIRO (Agora com projétil visual)
+            // LÓGICA DE TIRO (Com Projétil)
             shoot() {
                 const now = performance.now();
                 if (now < this.lastShotTime + this.fireRate) return; 
                 this.lastShotTime = now;
 
-                // 1. O Raycaster AINDA mira do centro da tela (mira virtual)
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
                 
-                const hittableObjects = Object.values(others).map(remote => remote.mesh);
+                const hittableObjects = Object.values(others).map(remote => remote.mesh).flatMap(group => group.children);
+                const mapMeshes = scene.children.filter(obj => obj.name && obj.name !== 'bullet'); // Exclui projéteis
 
-                // Adicionar mapa/caixas para colisão do tiro
-                const mapMeshes = [scene.getObjectByName('floor'), scene.getObjectByName('box1'), scene.getObjectByName('wall1'), scene.getObjectByName('pillar1')];
-                
                 const intersects = raycaster.intersectObjects([...hittableObjects, ...mapMeshes], true);
 
                 let hitPoint = null;
                 if (intersects.length > 0) {
                     hitPoint = intersects[0].point;
-                    const targetMesh = intersects[0].object;
+                    const target = intersects[0].object;
 
-                    // Verifica se o alvo é um jogador
                     let targetId = null;
                     for (const id in others) {
-                        if (others[id].mesh.children.includes(targetMesh) || others[id].mesh === targetMesh) {
+                        // Verifica se o objeto atingido pertence ao grupo de um jogador remoto
+                        if (others[id].mesh.children.includes(target) || others[id].mesh === target) {
                             targetId = id;
                             break;
                         }
                     }
 
                     if (targetId) {
-                        // Lógica de Dano e Headshot (mantida)
-                        const hitHeight = hitPoint.y - targetMesh.position.y + (PLAYER_HEIGHT / 2);
+                        const hitHeight = hitPoint.y - others[targetId].mesh.position.y + (PLAYER_HEIGHT / 2);
                         const isHeadshot = hitHeight > PLAYER_HEIGHT * 0.8;
                         let damage = isHeadshot ? DAMAGE_DEFAULT * 2 : DAMAGE_DEFAULT;
                         
@@ -231,56 +264,103 @@
                             damage: damage,
                             timestamp: firebase.database.ServerValue.TIMESTAMP
                         });
-                        targetMesh.parent.traverse((child) => {
+                        
+                        target.parent.traverse((child) => { // Feedback visual no alvo
                             if (child.material) child.material.color.set(0xff0000);
                         }); 
                         setTimeout(() => {
-                            targetMesh.parent.traverse((child) => {
-                                if (child.material && child.material.color.getHex() === 0xff0000) child.material.color.set(0x0000ff);
+                            target.parent.traverse((child) => {
+                                // Volta a cor original (verde para o corpo, pele para a cabeça)
+                                if (child.isMesh && child.material.color.getHex() === 0xff0000) {
+                                    if (child.geometry.type === 'CylinderGeometry') child.material.color.set(0x0000ff);
+                                    if (child.geometry.type === 'SphereGeometry') child.material.color.set(0xffe0bd);
+                                }
                             });
                         }, 50);
                     }
                 } else {
-                    // Se não acertar nada, o tiro vai longe (ex: 50 unidades na direção do raio)
                     hitPoint = raycaster.ray.at(50, new THREE.Vector3());
                 }
 
-                // 2. Projétil Visual Simples (Sair da ponta da arma até o hitPoint)
-                const startPoint = this.weaponMesh.getWorldPosition(new THREE.Vector3());
+                // Obtém a posição da ponta do cano da arma
+                const startPoint = this.weaponMesh.children[0].getWorldPosition(new THREE.Vector3());
                 createBulletVisual(startPoint, hitPoint);
+            }
+            
+            // Checa colisão antes de mover
+            checkCollision(movementVector) {
+                const rotationMatrix = new THREE.Matrix4();
+                rotationMatrix.extractRotation(this.mesh.matrix);
+                
+                const rotatedMovement = movementVector.clone().applyMatrix4(rotationMatrix);
+
+                const currentPosition = this.mesh.position.clone();
+                const futurePosition = currentPosition.clone().add(rotatedMovement);
+                
+                const castRay = (direction) => {
+                    const origin = currentPosition.clone();
+                    origin.y += PLAYER_HEIGHT / 2; // Lança o raio do centro do corpo
+
+                    raycaster.set(origin, direction);
+                    raycaster.far = PLAYER_RADIUS + this.collisionOffset; // Verifica apenas a distância do raio do jogador
+
+                    const mapMeshes = scene.children.filter(obj => (obj.name && obj.name !== 'floor' && obj.name !== 'bullet') && obj.isMesh);
+                    
+                    const intersections = raycaster.intersectObjects(mapMeshes, true);
+                    return intersections.length > 0;
+                };
+
+                // Direções de colisão (frente, trás, lados)
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.mesh.quaternion);
+                const backward = forward.clone().negate();
+                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.mesh.quaternion);
+                const left = right.clone().negate();
+
+                let canMoveX = true;
+                let canMoveZ = true;
+
+                if (rotatedMovement.z < -0.001 && castRay(forward)) canMoveZ = false; // Movendo para frente e colide
+                if (rotatedMovement.z > 0.001 && castRay(backward)) canMoveZ = false; // Movendo para trás e colide
+                if (rotatedMovement.x > 0.001 && castRay(right)) canMoveX = false; // Movendo para direita e colide
+                if (rotatedMovement.x < -0.001 && castRay(left)) canMoveX = false; // Movendo para esquerda e colide
+                
+                return { canMoveX, canMoveZ };
             }
 
             update(deltaTime) {
-                // 1. Movimento do Corpo
                 this.velocity.x = 0;
                 this.velocity.z = 0;
 
-                let moving = false;
-                if (this.keys['KeyW']) { this.velocity.z -= this.currentSpeed; moving = true; }
-                if (this.keys['KeyS']) { this.velocity.z += this.currentSpeed; moving = true; }
-                if (this.keys['KeyA']) { this.velocity.x -= this.currentSpeed; moving = true; }
-                if (this.keys['KeyD']) { this.velocity.x += this.currentSpeed; moving = true; }
+                const desiredMovement = new THREE.Vector3(0, 0, 0);
 
-                const desiredHeight = this.keys['ControlLeft'] ? PLAYER_HEIGHT * 0.3 : PLAYER_HEIGHT / 2;
-                this.mesh.position.y = desiredHeight; // Fixa no chão por enquanto, ignorando gravidade
+                if (this.keys['KeyW']) desiredMovement.z -= this.currentSpeed * deltaTime;
+                if (this.keys['KeyS']) desiredMovement.z += this.currentSpeed * deltaTime;
+                if (this.keys['KeyA']) desiredMovement.x -= this.currentSpeed * deltaTime;
+                if (this.keys['KeyD']) desiredMovement.x += this.currentSpeed * deltaTime;
 
-                const direction = new THREE.Vector3(this.velocity.x, 0, this.velocity.z);
+                const { canMoveX, canMoveZ } = this.checkCollision(desiredMovement);
+
+                const direction = new THREE.Vector3(0, 0, 0);
+
+                // Aplica movimento APENAS se não houver colisão
+                if (canMoveX) direction.x = desiredMovement.x;
+                if (canMoveZ) direction.z = desiredMovement.z;
+                
                 direction.applyQuaternion(this.mesh.quaternion);
                 
-                // Mover o Mesh
-                this.mesh.position.x += direction.x * deltaTime;
-                this.mesh.position.z += direction.z * deltaTime;
+                this.mesh.position.x += direction.x;
+                this.mesh.position.z += direction.z;
 
-                // 2. Atualiza a Posição da Câmera (TPS)
-                // A câmera orbita o mesh (atrás e acima)
-                const cameraOffset = new THREE.Vector3(0, 1.5, this.cameraDistance); // 1.5m acima, 3m atrás
+                // Colisão simples com o chão e Agachar
+                const desiredHeight = this.keys['ControlLeft'] ? PLAYER_HEIGHT * 0.3 : PLAYER_HEIGHT / 2;
+                this.mesh.position.y = desiredHeight;
+
+                // Atualiza Câmera TPS (mantido da versão anterior)
+                const cameraOffset = new THREE.Vector3(0, 1.5, this.cameraDistance); 
                 cameraOffset.applyEuler(new THREE.Euler(this.camera.rotation.x, this.mesh.rotation.y, 0, 'YXZ'));
                 
                 this.camera.position.copy(this.mesh.position).add(cameraOffset);
                 this.camera.lookAt(this.mesh.position.x, this.mesh.position.y + PLAYER_HEIGHT / 2, this.mesh.position.z);
-
-                // 3. Simulação de gravidade/pulo (Simplificada)
-                this.mesh.position.y = desiredHeight;
 
                 document.getElementById('hp').innerText = this.health;
             }
@@ -297,26 +377,24 @@
         //                 MÓDULO DE EFEITOS (PROJÉTIL)
         // =================================================================
         
-        const bulletMeshes = []; // Array para rastrear projéteis visuais
+        const bulletMeshes = [];
 
         function createBulletVisual(start, end) {
-            // Cria um cilindro que simula o rastro do tiro
             const distance = start.distanceTo(end);
             const midPoint = new THREE.Vector3().lerpVectors(start, end, 0.5);
 
             const bulletGeo = new THREE.CylinderGeometry(0.01, 0.01, distance, 8);
             const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.8 });
             const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+            bullet.name = 'bullet'; // Identifica o projétil
 
-            // Posiciona no meio e orienta
             bullet.position.copy(midPoint);
-            bullet.lookAt(end); // Aponta o eixo Y para o ponto final
-            bullet.rotateX(Math.PI / 2); // Ajusta o cilindro para o eixo de rotação
+            bullet.lookAt(end); 
+            bullet.rotateX(Math.PI / 2);
 
             scene.add(bullet);
-            bulletMeshes.push({ mesh: bullet, lifespan: 0.15 }); // Dura 150ms
+            bulletMeshes.push({ mesh: bullet, lifespan: 0.15 }); 
 
-            // Adiciona um flash de luz simples na ponta da arma
             const flash = new THREE.PointLight(0xffffaa, 50, 1);
             flash.position.copy(start);
             scene.add(flash);
@@ -327,7 +405,7 @@
             for (let i = bulletMeshes.length - 1; i >= 0; i--) {
                 const bullet = bulletMeshes[i];
                 bullet.lifespan -= deltaTime;
-                bullet.mesh.material.opacity = bullet.lifespan / 0.15; // Fade out
+                bullet.mesh.material.opacity = bullet.lifespan / 0.15; 
 
                 if (bullet.lifespan <= 0) {
                     scene.remove(bullet.mesh);
@@ -341,19 +419,17 @@
         // =================================================================
         //                 MÓDULO FIREBASE (MULTIPLAYER BÁSICO)
         // =================================================================
-
+        // ... (Mantido da versão anterior) ...
         function setupFirebaseListeners() {
             const playersRef = db.ref('rooms/default/players');
             const eventsRef = db.ref('rooms/default/events'); 
 
-            // Listener de Posição/Conexão
             playersRef.on('child_added', (snapshot) => {
                 const playerId = snapshot.key;
                 const data = snapshot.val();
                 if (playerId === localPlayerId) return; 
                 
-                // Agora usa o modelo de personagem
-                const mesh = createPlayerMesh(0x0000ff); // Boneco azul para oponentes
+                const mesh = createPlayerMesh(0x0000ff); 
                 const sprite = createNameTag(data.nick);
                 mesh.add(sprite);
 
@@ -384,7 +460,7 @@
                 const playerId = snapshot.key;
                 if (others[playerId]) {
                     scene.remove(others[playerId].mesh);
-                    others[playerId].mesh.traverse(child => { // Limpa todos os meshes do grupo
+                    others[playerId].mesh.traverse(child => { 
                         if (child.isMesh) {
                             child.geometry.dispose();
                             child.material.dispose();
@@ -395,7 +471,6 @@
                 }
             });
 
-            // LISTENER PARA EVENTOS DE DANO
             eventsRef.on('child_added', (snapshot) => {
                 const eventData = snapshot.val();
                 const eventId = snapshot.key;
@@ -430,7 +505,7 @@
         }
 
         // =================================================================
-        //                 FUNÇÕES DE UTIlIDADE E SETUP
+        //                 SETUP INICIAL DO THREE.JS E MAPA DETALHADO
         // =================================================================
 
         function createNameTag(name) {
@@ -446,7 +521,7 @@
             const material = new THREE.SpriteMaterial({ map: texture });
             const sprite = new THREE.Sprite(material);
             sprite.scale.set(3, 0.75, 1);
-            sprite.position.y = PLAYER_HEIGHT / 2 + 0.5;
+            sprite.position.y = PLAYER_HEIGHT / 2 + PLAYER_RADIUS + 0.3; // Um pouco acima da cabeça
             return sprite;
         }
         
@@ -495,7 +570,6 @@
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('hud').style.display = 'block';
 
-            // Three.js Setup
             clock = new THREE.Clock();
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb);
@@ -512,27 +586,21 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
             
-            // Luzes
             scene.add(new THREE.AmbientLight(0x404040, 2));
-            const directionalLight = new THREE.DirectionionalLight(0xffffff, 0.6);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
             directionalLight.position.set(5, 15, 5);
             scene.add(directionalLight);
 
-            // Mapa
             createMap();
 
-
-            // 2. Inicializa Jogador Local
             localPlayer = new PlayerController(camera);
             localPlayer.handleKeyEvents();
             scene.add(localPlayer.mesh);
             
             localPlayer.mesh.position.set(0, PLAYER_HEIGHT / 2, 0);
 
-            // 3. Setup Firebase 
             setupFirebaseListeners();
             
-            // 4. Entra no Jogo
             localPlayer.enablePointerLock();
             gameLoop();
         }
@@ -552,7 +620,7 @@
             if (document.pointerLockElement === document.body) {
                 localPlayer.update(deltaTime); 
                 updateRemotePlayers(deltaTime);
-                updateBulletVisuals(deltaTime); // Atualiza os rastros de tiro
+                updateBulletVisuals(deltaTime); 
                 
                 const now = performance.now();
                 if (now - lastFirebaseUpdate > FIREBASE_UPDATE_INTERVAL) {
