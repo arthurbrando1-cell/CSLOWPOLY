@@ -1,75 +1,318 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CS Web | TPS Multiplayer Low-Poly (Detalhado)</title>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
-
+    <title>CS FPS - Multiplayer</title>
     <style>
-        /* ... (CSS mantido) ... */
-        body { margin: 0; overflow: hidden; background-color: #111; font-family: sans-serif; }
-        canvas { display: block; }
-
-        #crosshair {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 2px;
-            height: 2px;
-            background-color: white;
-            border: 1px solid black;
-            border-radius: 50%;
-            z-index: 10;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        #lobby {
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* Menu Principal */
+        #mainMenu {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.85);
-            color: white;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            z-index: 20;
+            justify-content: center;
+            z-index: 1000;
         }
 
+        #mainMenu h1 {
+            color: #ff6b35;
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+        }
+
+        #mainMenu input {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border: 2px solid #ff6b35;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 5px;
+            margin: 10px;
+            min-width: 300px;
+        }
+
+        #mainMenu button {
+            padding: 15px 50px;
+            font-size: 1.3em;
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+
+        #mainMenu button:hover {
+            background: #ff8555;
+            transform: scale(1.05);
+        }
+
+        /* HUD */
         #hud {
             position: fixed;
-            bottom: 10px;
-            left: 10px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: none;
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+        }
+
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: #00ff00;
+        }
+
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            left: 9px;
+        }
+
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            top: 9px;
+        }
+
+        #stats {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-size: 1.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        #health {
+            color: #00ff00;
+            margin-bottom: 10px;
+        }
+
+        #ammo {
+            color: #ffff00;
+        }
+
+        #weapon {
+            color: #ff6b35;
+            margin-bottom: 10px;
+        }
+
+        #killFeed {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 1em;
+            text-align: right;
+            max-width: 300px;
+        }
+
+        .kill {
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        #scoreboard {
+            position: absolute;
+            top: 50px;
+            left: 20px;
             color: white;
             font-size: 1.2em;
-            z-index: 15;
-            display: none; 
+        }
+
+        #chat {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            width: 400px;
+            pointer-events: all;
+        }
+
+        #chatMessages {
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            color: white;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        #chatInput {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #ff6b35;
+            color: white;
+            display: none;
+        }
+
+        /* Tela de Morte */
+        #deathScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,0,0,0.3);
+            padding: 50px;
+            border-radius: 10px;
+            text-align: center;
+            color: white;
+            font-size: 2em;
+            display: none;
+        }
+
+        /* Loading */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 2em;
+            z-index: 999;
+        }
+
+        /* Mobile Controls */
+        #mobileControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 200px;
+            pointer-events: all;
+        }
+
+        #joystick {
+            position: absolute;
+            left: 50px;
+            bottom: 50px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        #fireButton {
+            position: absolute;
+            right: 50px;
+            bottom: 50px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255,0,0,0.5);
+            border-radius: 50%;
+            border: 2px solid white;
+            color: white;
+            font-size: 1.5em;
+        }
+
+        @media (max-width: 768px) {
+            #mobileControls { display: block; }
         }
     </style>
 </head>
 <body>
-
-    <div id="crosshair"></div>
-    <div id="hud">HP: <span id="hp">100</span> | Munição: 99</div>
-
-    <div id="lobby">
-        <h2>CS Web | TPS Low-Poly (Detalhado)</h2>
-        <input type="text" id="nickInput" placeholder="Seu Nickname" value="PlayerJS" style="padding: 10px; margin: 10px;"/>
-        <button id="joinButton" style="padding: 10px 20px; font-size: 1.1em; cursor: pointer;">Entrar na Partida</button>
-        <p style="margin-top: 20px; color: #aaa;">Agora com Colisão Básica e Arma Detalhada!</p>
+    <!-- Menu Principal -->
+    <div id="mainMenu">
+        <h1>🎮 COUNTER STRIKE FPS</h1>
+        <input type="text" id="playerName" placeholder="Digite seu nome" maxlength="15">
+        <input type="text" id="roomCode" placeholder="Código da sala (opcional)" maxlength="10">
+        <button id="startButton">ENTRAR NA PARTIDA</button>
+        <p style="color: #888; margin-top: 20px;">WASD - Mover | Mouse - Mirar | Click - Atirar | R - Recarregar | 1-3 - Trocar Arma</p>
     </div>
 
+    <!-- Loading -->
+    <div id="loading">Carregando...</div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="crosshair"></div>
+        <div id="stats">
+            <div id="health">❤️ HP: 100</div>
+            <div id="weapon">🔫 Pistol</div>
+            <div id="ammo">📦 12 / 60</div>
+        </div>
+        <div id="killFeed"></div>
+        <div id="scoreboard">
+            <div style="background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px;">
+                <div id="score">Kills: 0 | Deaths: 0</div>
+            </div>
+        </div>
+        <div id="chat">
+            <div id="chatMessages"></div>
+            <input type="text" id="chatInput" placeholder="Pressione T para chat..." maxlength="100">
+        </div>
+        <div id="deathScreen">
+            💀 VOCÊ MORREU<br>
+            <span style="font-size: 0.5em;">Respawnando em <span id="respawnTimer">5</span>s</span>
+        </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobileControls">
+        <div id="joystick"></div>
+        <button id="fireButton">🔥</button>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <script>
-        // =================================================================
-        //                 CONFIGURAÇÃO INICIAL (FIREBASE)
-        // =================================================================
-        
+        // ==================== CONFIGURAÇÃO FIREBASE ====================
         const firebaseConfig = {
             apiKey: "AIzaSyAIKPooiHzcB5d8_mRiDMyiam4AYel4lZs",
             authDomain: "cs-low-poly.firebaseapp.com",
@@ -79,597 +322,720 @@
             messagingSenderId: "291417778108",
             appId: "1:291417778108:web:881869dd93735c6167edb9"
         };
+
+        // Inicializar Firebase (com tratamento de erro)
+        let database = null;
+        let firebaseEnabled = false;
         
-        if (firebase.apps.length === 0) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const db = firebase.database();
-        
-        let scene, camera, renderer, clock, localPlayerId, localPlayerNick;
-        const others = {}; 
-        
-        const PLAYER_HEIGHT = 1.8;
-        const PLAYER_RADIUS = 0.25; // Usado para a colisão
-        const PLAYER_SPEED = 5;
-        const GRAVITY = -9.8;
-        
-        const raycaster = new THREE.Raycaster();
-        const DAMAGE_DEFAULT = 15;
-        
-        // =================================================================
-        //                 MÓDULO DE MODELAGEM 3D (PERSONAGEM E ARMA)
-        // =================================================================
-
-        function createPlayerMesh(color) {
-            const group = new THREE.Group();
-            
-            // 1. Corpo (Cilindro)
-            const bodyGeo = new THREE.CylinderGeometry(PLAYER_RADIUS, PLAYER_RADIUS, PLAYER_HEIGHT, 16);
-            const bodyMat = new THREE.MeshPhongMaterial({ color: color });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            
-            // 2. Cabeça (Esfera)
-            const headGeo = new THREE.SphereGeometry(PLAYER_RADIUS, 16, 16);
-            const headMat = new THREE.MeshPhongMaterial({ color: 0xffe0bd }); 
-            const head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = PLAYER_HEIGHT / 2 + PLAYER_RADIUS;
-
-            // 3. Olhar (Placeholder para direção de rotação)
-            const sightGeo = new THREE.BoxGeometry(0.05, 0.05, 0.1);
-            const sightMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-            const sight = new THREE.Mesh(sightGeo, sightMat);
-            sight.position.set(0, 0, -PLAYER_RADIUS);
-            head.add(sight); // Anexado à cabeça
-
-            group.add(body);
-            group.add(head);
-            group.position.y = PLAYER_HEIGHT / 2;
-            
-            return group;
-        }
-        
-        function createDetailedWeapon() {
-            const weaponGroup = new THREE.Group();
-            const material = new THREE.MeshStandardMaterial({ color: 0x222222 }); 
-            const metalMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 }); 
-
-            // 1. Cano (Cilindro Fino)
-            const barrel = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.03, 0.03, 0.6, 12),
-                metalMaterial
-            );
-            barrel.rotation.z = Math.PI / 2; 
-            barrel.position.set(0.3, 0.1, 0);
-            weaponGroup.add(barrel);
-            
-            // 2. Corpo Principal (Caixa)
-            const receiver = new THREE.Mesh(
-                new THREE.BoxGeometry(0.08, 0.15, 0.5),
-                material
-            );
-            receiver.position.set(0, 0.05, -0.15);
-            weaponGroup.add(receiver);
-
-            // 3. Coronha (Parte traseira)
-            const stock = new THREE.Mesh(
-                new THREE.BoxGeometry(0.05, 0.1, 0.3),
-                material
-            );
-            stock.position.set(0, 0.05, 0.3);
-            weaponGroup.add(stock);
-
-            // 4. Mira (Pequeno cubo no topo)
-            const scope = new THREE.Mesh(
-                new THREE.BoxGeometry(0.03, 0.03, 0.1),
-                metalMaterial
-            );
-            scope.position.set(0, 0.15, -0.3);
-            weaponGroup.add(scope);
-            
-            // Centraliza o ponto de "mira" (ponta do cano)
-            weaponGroup.rotation.y = Math.PI / 2; // Gira para que o cano aponte para a frente (Z negativo)
-            weaponGroup.position.set(0.3, -0.2, -0.3); // Posição para segurar na mão direita
-
-            return weaponGroup;
+        try {
+            if (typeof firebase !== 'undefined') {
+                firebase.initializeApp(firebaseConfig);
+                database = firebase.database();
+                firebaseEnabled = true;
+                console.log("Firebase inicializado com sucesso!");
+            }
+        } catch (error) {
+            console.warn("Firebase não configurado. Modo offline.", error);
+            firebaseEnabled = false;
         }
 
-        // =================================================================
-        //                 MÓDULO DE FÍSICA E MOVIMENTO (TPS COM COLISÃO)
-        // =================================================================
-        
-        class PlayerController {
-            constructor(camera) {
-                this.camera = camera;
-                this.velocity = new THREE.Vector3(0, 0, 0);
-                this.isJumping = false;
-                this.keys = {};
-                this.health = 100;
-                this.lastShotTime = 0;
-                this.fireRate = 200; 
-                this.currentSpeed = PLAYER_SPEED;
-                
-                this.mesh = createPlayerMesh(0x00ff00); 
-                this.cameraDistance = 3; 
-                this.collisionOffset = 0.05; // Margem de segurança na colisão
+        // ==================== VARIÁVEIS GLOBAIS ====================
+        let scene, camera, renderer, clock;
+        let player, players = {};
+        let keys = {}, mouse = { x: 0, y: 0 };
+        let isPointerLocked = false;
+        let gameStarted = false;
+        let myPlayerId = 'player_' + Math.random().toString(36).substr(2, 9);
+        let roomId = 'default_room';
 
-                this.weaponMesh = createDetailedWeapon();
-                this.mesh.getObjectByName('head').add(this.weaponMesh);
+        // Player stats
+        let playerStats = {
+            name: '',
+            health: 100,
+            kills: 0,
+            deaths: 0,
+            isAlive: true,
+            position: { x: 0, y: 1, z: 0 },
+            rotation: { x: 0, y: 0 },
+            currentWeapon: 0
+        };
+
+        // Weapons
+        const weapons = [
+            { name: 'Pistol', damage: 25, ammo: 12, maxAmmo: 60, fireRate: 300, spread: 0.02, icon: '🔫' },
+            { name: 'Rifle', damage: 35, ammo: 30, maxAmmo: 90, fireRate: 100, spread: 0.01, icon: '🔫' },
+            { name: 'Knife', damage: 75, ammo: Infinity, maxAmmo: Infinity, fireRate: 500, spread: 0, icon: '🔪' }
+        ];
+        
+        let currentWeapon = weapons[0];
+        let currentAmmo = currentWeapon.ammo;
+        let reserveAmmo = currentWeapon.maxAmmo;
+        let canFire = true;
+        let isReloading = false;
+
+        // ==================== INICIALIZAÇÃO ====================
+        document.getElementById('loading').style.display = 'none';
+
+        document.getElementById('startButton').addEventListener('click', startGame);
+        document.getElementById('playerName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') startGame();
+        });
+
+        function startGame() {
+            const nameInput = document.getElementById('playerName').value.trim();
+            const roomInput = document.getElementById('roomCode').value.trim();
+            
+            if (!nameInput) {
+                alert('Digite seu nome!');
+                return;
             }
 
-            // ... (handleKeyEvents e enablePointerLock mantidos) ...
-            handleKeyEvents() {
-                document.addEventListener('keydown', (e) => { 
-                    this.keys[e.code] = true; 
-                    if (e.code === 'ShiftLeft') this.currentSpeed = PLAYER_SPEED * 1.8;
-                });
-                document.addEventListener('keyup', (e) => { 
-                    this.keys[e.code] = false; 
-                    if (e.code === 'ShiftLeft') this.currentSpeed = PLAYER_SPEED;
-                });
-                this.currentSpeed = PLAYER_SPEED;
-                document.addEventListener('mousedown', (e) => {
-                    if (document.pointerLockElement === document.body && e.button === 0) { 
-                        this.shoot();
-                    }
-                });
-            }
+            playerStats.name = nameInput;
+            if (roomInput) roomId = roomInput;
 
-            enablePointerLock() {
-                document.body.requestPointerLock();
-                document.addEventListener('mousemove', (e) => {
-                    if (document.pointerLockElement === document.body) {
-                        this.mesh.rotation.y -= e.movementX * 0.002;
-                        this.camera.rotation.x -= e.movementY * 0.002;
-                        this.camera.rotation.x = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, this.camera.rotation.x));
-                    }
-                });
-            }
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
             
-            // LÓGICA DE TIRO (Com Projétil)
-            shoot() {
-                const now = performance.now();
-                if (now < this.lastShotTime + this.fireRate) return; 
-                this.lastShotTime = now;
-
-                raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-                
-                const hittableObjects = Object.values(others).map(remote => remote.mesh).flatMap(group => group.children);
-                const mapMeshes = scene.children.filter(obj => obj.name && obj.name !== 'bullet'); // Exclui projéteis
-
-                const intersects = raycaster.intersectObjects([...hittableObjects, ...mapMeshes], true);
-
-                let hitPoint = null;
-                if (intersects.length > 0) {
-                    hitPoint = intersects[0].point;
-                    const target = intersects[0].object;
-
-                    let targetId = null;
-                    for (const id in others) {
-                        // Verifica se o objeto atingido pertence ao grupo de um jogador remoto
-                        if (others[id].mesh.children.includes(target) || others[id].mesh === target) {
-                            targetId = id;
-                            break;
-                        }
-                    }
-
-                    if (targetId) {
-                        const hitHeight = hitPoint.y - others[targetId].mesh.position.y + (PLAYER_HEIGHT / 2);
-                        const isHeadshot = hitHeight > PLAYER_HEIGHT * 0.8;
-                        let damage = isHeadshot ? DAMAGE_DEFAULT * 2 : DAMAGE_DEFAULT;
-                        
-                        db.ref('rooms/default/events').push({
-                            type: 'damage',
-                            shooterId: localPlayerId,
-                            targetId: targetId,
-                            damage: damage,
-                            timestamp: firebase.database.ServerValue.TIMESTAMP
-                        });
-                        
-                        target.parent.traverse((child) => { // Feedback visual no alvo
-                            if (child.material) child.material.color.set(0xff0000);
-                        }); 
-                        setTimeout(() => {
-                            target.parent.traverse((child) => {
-                                // Volta a cor original (verde para o corpo, pele para a cabeça)
-                                if (child.isMesh && child.material.color.getHex() === 0xff0000) {
-                                    if (child.geometry.type === 'CylinderGeometry') child.material.color.set(0x0000ff);
-                                    if (child.geometry.type === 'SphereGeometry') child.material.color.set(0xffe0bd);
-                                }
-                            });
-                        }, 50);
-                    }
-                } else {
-                    hitPoint = raycaster.ray.at(50, new THREE.Vector3());
-                }
-
-                // Obtém a posição da ponta do cano da arma
-                const startPoint = this.weaponMesh.children[0].getWorldPosition(new THREE.Vector3());
-                createBulletVisual(startPoint, hitPoint);
-            }
-            
-            // Checa colisão antes de mover
-            checkCollision(movementVector) {
-                const rotationMatrix = new THREE.Matrix4();
-                rotationMatrix.extractRotation(this.mesh.matrix);
-                
-                const rotatedMovement = movementVector.clone().applyMatrix4(rotationMatrix);
-
-                const currentPosition = this.mesh.position.clone();
-                const futurePosition = currentPosition.clone().add(rotatedMovement);
-                
-                const castRay = (direction) => {
-                    const origin = currentPosition.clone();
-                    origin.y += PLAYER_HEIGHT / 2; // Lança o raio do centro do corpo
-
-                    raycaster.set(origin, direction);
-                    raycaster.far = PLAYER_RADIUS + this.collisionOffset; // Verifica apenas a distância do raio do jogador
-
-                    const mapMeshes = scene.children.filter(obj => (obj.name && obj.name !== 'floor' && obj.name !== 'bullet') && obj.isMesh);
-                    
-                    const intersections = raycaster.intersectObjects(mapMeshes, true);
-                    return intersections.length > 0;
-                };
-
-                // Direções de colisão (frente, trás, lados)
-                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.mesh.quaternion);
-                const backward = forward.clone().negate();
-                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.mesh.quaternion);
-                const left = right.clone().negate();
-
-                let canMoveX = true;
-                let canMoveZ = true;
-
-                if (rotatedMovement.z < -0.001 && castRay(forward)) canMoveZ = false; // Movendo para frente e colide
-                if (rotatedMovement.z > 0.001 && castRay(backward)) canMoveZ = false; // Movendo para trás e colide
-                if (rotatedMovement.x > 0.001 && castRay(right)) canMoveX = false; // Movendo para direita e colide
-                if (rotatedMovement.x < -0.001 && castRay(left)) canMoveX = false; // Movendo para esquerda e colide
-                
-                return { canMoveX, canMoveZ };
-            }
-
-            update(deltaTime) {
-                this.velocity.x = 0;
-                this.velocity.z = 0;
-
-                const desiredMovement = new THREE.Vector3(0, 0, 0);
-
-                if (this.keys['KeyW']) desiredMovement.z -= this.currentSpeed * deltaTime;
-                if (this.keys['KeyS']) desiredMovement.z += this.currentSpeed * deltaTime;
-                if (this.keys['KeyA']) desiredMovement.x -= this.currentSpeed * deltaTime;
-                if (this.keys['KeyD']) desiredMovement.x += this.currentSpeed * deltaTime;
-
-                const { canMoveX, canMoveZ } = this.checkCollision(desiredMovement);
-
-                const direction = new THREE.Vector3(0, 0, 0);
-
-                // Aplica movimento APENAS se não houver colisão
-                if (canMoveX) direction.x = desiredMovement.x;
-                if (canMoveZ) direction.z = desiredMovement.z;
-                
-                direction.applyQuaternion(this.mesh.quaternion);
-                
-                this.mesh.position.x += direction.x;
-                this.mesh.position.z += direction.z;
-
-                // Colisão simples com o chão e Agachar
-                const desiredHeight = this.keys['ControlLeft'] ? PLAYER_HEIGHT * 0.3 : PLAYER_HEIGHT / 2;
-                this.mesh.position.y = desiredHeight;
-
-                // Atualiza Câmera TPS (mantido da versão anterior)
-                const cameraOffset = new THREE.Vector3(0, 1.5, this.cameraDistance); 
-                cameraOffset.applyEuler(new THREE.Euler(this.camera.rotation.x, this.mesh.rotation.y, 0, 'YXZ'));
-                
-                this.camera.position.copy(this.mesh.position).add(cameraOffset);
-                this.camera.lookAt(this.mesh.position.x, this.mesh.position.y + PLAYER_HEIGHT / 2, this.mesh.position.z);
-
-                document.getElementById('hp').innerText = this.health;
-            }
-
-            getPosition() { return { x: this.mesh.position.x, y: this.mesh.position.y, z: this.mesh.position.z }; }
-            getRotation() { return this.mesh.rotation.y; }
-            takeDamage(damage) {
-                this.health = Math.max(0, this.health - damage);
-                console.log(`Você levou ${damage} de dano! HP restante: ${this.health}`);
-            }
+            initGame();
+            gameStarted = true;
         }
-
-        // =================================================================
-        //                 MÓDULO DE EFEITOS (PROJÉTIL)
-        // =================================================================
-        
-        const bulletMeshes = [];
-
-        function createBulletVisual(start, end) {
-            const distance = start.distanceTo(end);
-            const midPoint = new THREE.Vector3().lerpVectors(start, end, 0.5);
-
-            const bulletGeo = new THREE.CylinderGeometry(0.01, 0.01, distance, 8);
-            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.8 });
-            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
-            bullet.name = 'bullet'; // Identifica o projétil
-
-            bullet.position.copy(midPoint);
-            bullet.lookAt(end); 
-            bullet.rotateX(Math.PI / 2);
-
-            scene.add(bullet);
-            bulletMeshes.push({ mesh: bullet, lifespan: 0.15 }); 
-
-            const flash = new THREE.PointLight(0xffffaa, 50, 1);
-            flash.position.copy(start);
-            scene.add(flash);
-            setTimeout(() => scene.remove(flash), 100);
-        }
-
-        function updateBulletVisuals(deltaTime) {
-            for (let i = bulletMeshes.length - 1; i >= 0; i--) {
-                const bullet = bulletMeshes[i];
-                bullet.lifespan -= deltaTime;
-                bullet.mesh.material.opacity = bullet.lifespan / 0.15; 
-
-                if (bullet.lifespan <= 0) {
-                    scene.remove(bullet.mesh);
-                    bullet.mesh.geometry.dispose();
-                    bullet.mesh.material.dispose();
-                    bulletMeshes.splice(i, 1);
-                }
-            }
-        }
-        
-        // =================================================================
-        //                 MÓDULO FIREBASE (MULTIPLAYER BÁSICO)
-        // =================================================================
-        // ... (Mantido da versão anterior) ...
-        function setupFirebaseListeners() {
-            const playersRef = db.ref('rooms/default/players');
-            const eventsRef = db.ref('rooms/default/events'); 
-
-            playersRef.on('child_added', (snapshot) => {
-                const playerId = snapshot.key;
-                const data = snapshot.val();
-                if (playerId === localPlayerId) return; 
-                
-                const mesh = createPlayerMesh(0x0000ff); 
-                const sprite = createNameTag(data.nick);
-                mesh.add(sprite);
-
-                scene.add(mesh);
-                others[playerId] = { mesh, data: data, targetPosition: new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z), targetRotationY: data.rotY };
-            });
-
-            playersRef.on('child_changed', (snapshot) => {
-                const playerId = snapshot.key;
-                const data = snapshot.val();
-                
-                if (playerId === localPlayerId) {
-                    if (localPlayer.health !== data.health) {
-                        localPlayer.health = data.health;
-                        document.getElementById('hp').innerText = localPlayer.health;
-                    }
-                    return;
-                }
-                
-                if (others[playerId]) {
-                    others[playerId].targetPosition.set(data.pos.x, data.pos.y, data.pos.z);
-                    others[playerId].targetRotationY = data.rotY;
-                    others[playerId].data = data;
-                }
-            });
-
-            playersRef.on('child_removed', (snapshot) => {
-                const playerId = snapshot.key;
-                if (others[playerId]) {
-                    scene.remove(others[playerId].mesh);
-                    others[playerId].mesh.traverse(child => { 
-                        if (child.isMesh) {
-                            child.geometry.dispose();
-                            child.material.dispose();
-                        }
-                    });
-                    delete others[playerId];
-                    console.log(`Jogador ${snapshot.val().nick} desconectado.`);
-                }
-            });
-
-            eventsRef.on('child_added', (snapshot) => {
-                const eventData = snapshot.val();
-                const eventId = snapshot.key;
-
-                if (eventData.type === 'damage' && eventData.targetId === localPlayerId) {
-                    localPlayer.takeDamage(eventData.damage);
-                    
-                    playersRef.child(localPlayerId).update({
-                        health: localPlayer.health
-                    });
-
-                    eventsRef.child(eventId).remove();
-                } 
-            });
-        }
-        
-        function updateRemotePlayers(deltaTime) {
-            const LERP_FACTOR = 5 * deltaTime;
-            
-            for (const id in others) {
-                const remote = others[id];
-                remote.mesh.position.lerp(remote.targetPosition, LERP_FACTOR);
-                remote.mesh.rotation.y += getAngleDifference(remote.mesh.rotation.y, remote.targetRotationY) * LERP_FACTOR;
-            }
-        }
-        
-        function getAngleDifference(current, target) {
-            let diff = target - current;
-            while (diff > Math.PI) diff -= 2 * Math.PI;
-            while (diff < -Math.PI) diff += 2 * Math.PI;
-            return diff;
-        }
-
-        // =================================================================
-        //                 SETUP INICIAL DO THREE.JS E MAPA DETALHADO
-        // =================================================================
-
-        function createNameTag(name) {
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.width = 256;
-            canvas.height = 64;
-            context.font = 'Bold 30px Arial';
-            context.fillStyle = 'white';
-            context.fillText(name, 10, 40);
-
-            const texture = new THREE.CanvasTexture(canvas);
-            const material = new THREE.SpriteMaterial({ map: texture });
-            const sprite = new THREE.Sprite(material);
-            sprite.scale.set(3, 0.75, 1);
-            sprite.position.y = PLAYER_HEIGHT / 2 + PLAYER_RADIUS + 0.3; // Um pouco acima da cabeça
-            return sprite;
-        }
-        
-        function createMap() {
-            // Chão
-            const floor = new THREE.Mesh(
-                new THREE.PlaneGeometry(50, 50),
-                new THREE.MeshStandardMaterial({ color: 0x444444 })
-            );
-            floor.rotation.x = -Math.PI / 2;
-            floor.name = 'floor';
-            scene.add(floor);
-            
-            // Caixa 1 (Obstáculo Marrom)
-            const box1 = new THREE.Mesh(
-                new THREE.BoxGeometry(2, 2, 2),
-                new THREE.MeshStandardMaterial({ color: 0x994400 })
-            );
-            box1.position.set(5, 1, 5);
-            box1.name = 'box1';
-            scene.add(box1);
-
-            // Parede Longa (Cinza Claro)
-            const wall1 = new THREE.Mesh(
-                new THREE.BoxGeometry(20, 3, 0.2),
-                new THREE.MeshStandardMaterial({ color: 0xaaaaaa })
-            );
-            wall1.position.set(-10, 1.5, 10);
-            wall1.name = 'wall1';
-            scene.add(wall1);
-
-            // Pilar (Vermelho)
-            const pillar1 = new THREE.Mesh(
-                new THREE.BoxGeometry(1, 4, 1),
-                new THREE.MeshStandardMaterial({ color: 0xcc0000 })
-            );
-            pillar1.position.set(0, 2, -10);
-            pillar1.name = 'pillar1';
-            scene.add(pillar1);
-        }
-
-
-        let localPlayer;
 
         function initGame() {
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('hud').style.display = 'block';
-
-            clock = new THREE.Clock();
+            // Scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb);
+            scene.fog = new THREE.Fog(0x87ceeb, 0, 100);
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 0);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            // Renderer
+            const canvas = document.getElementById('gameCanvas');
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+            renderer.shadowMap.enabled = true;
 
+            // Clock
+            clock = new THREE.Clock();
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.left = -50;
+            dirLight.shadow.camera.right = 50;
+            dirLight.shadow.camera.top = 50;
+            dirLight.shadow.camera.bottom = -50;
+            scene.add(dirLight);
+
+            // Create Map
+            createMap();
+
+            // Create Player
+            createPlayer();
+
+            // Setup Controls
+            setupControls();
+
+            // Setup Firebase
+            if (firebaseEnabled) {
+                setupFirebase();
+            }
+
+            // Start Loop
+            animate();
+        }
+
+        // ==================== MAPA ====================
+        function createMap() {
+            // Chão
+            const floorGeometry = new THREE.PlaneGeometry(100, 100);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x808080,
+                roughness: 0.8
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            floor.userData.isGround = true;
+            scene.add(floor);
+
+            // Paredes externas
+            const walls = [
+                { x: 0, z: -50, width: 100, height: 10 },
+                { x: 0, z: 50, width: 100, height: 10 },
+                { x: -50, z: 0, width: 10, height: 100 },
+                { x: 50, z: 0, width: 10, height: 100 }
+            ];
+
+            walls.forEach(wall => {
+                const geometry = new THREE.BoxGeometry(
+                    wall.width || 2,
+                    wall.height || 5,
+                    wall.width ? 2 : wall.height
+                );
+                const material = new THREE.MeshStandardMaterial({ color: 0x404040 });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(wall.x, 2.5, wall.z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.userData.isWall = true;
+                scene.add(mesh);
+            });
+
+            // Caixas (estilo CS)
+            const boxes = [
+                { x: -10, z: -10, size: 2 },
+                { x: 10, z: 10, size: 2 },
+                { x: -15, z: 15, size: 3 },
+                { x: 15, z: -15, size: 2.5 },
+                { x: 0, z: 0, size: 2 },
+                { x: -20, z: 0, size: 2 },
+                { x: 20, z: 0, size: 2 },
+                { x: 0, z: -20, size: 3 },
+                { x: 0, z: 20, size: 2.5 }
+            ];
+
+            boxes.forEach(box => {
+                const geometry = new THREE.BoxGeometry(box.size, box.size, box.size);
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: 0x8b7355,
+                    roughness: 0.9
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(box.x, box.size / 2, box.z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.userData.isWall = true;
+                scene.add(mesh);
+            });
+
+            // Spawn points (invisíveis)
+            const spawnPoints = [
+                new THREE.Vector3(-30, 1, -30),
+                new THREE.Vector3(30, 1, 30),
+                new THREE.Vector3(-30, 1, 30),
+                new THREE.Vector3(30, 1, -30)
+            ];
+            
+            // Posição inicial aleatória
+            const spawn = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+            camera.position.copy(spawn);
+            playerStats.position = { x: spawn.x, y: spawn.y, z: spawn.z };
+        }
+
+        // ==================== PLAYER ====================
+        function createPlayer() {
+            // Player é a câmera (FPS)
+            player = {
+                velocity: new THREE.Vector3(),
+                speed: 5,
+                jumpSpeed: 7,
+                gravity: -20,
+                height: 1.6,
+                isGrounded: false,
+                isCrouching: false
+            };
+        }
+
+        // ==================== CONTROLES ====================
+        function setupControls() {
+            // Keyboard
+            document.addEventListener('keydown', (e) => {
+                keys[e.key.toLowerCase()] = true;
+                
+                // Armas
+                if (e.key === '1') switchWeapon(0);
+                if (e.key === '2') switchWeapon(1);
+                if (e.key === '3') switchWeapon(2);
+                
+                // Reload
+                if (e.key === 'r') reload();
+                
+                // Chat
+                if (e.key === 't') {
+                    const chatInput = document.getElementById('chatInput');
+                    chatInput.style.display = 'block';
+                    chatInput.focus();
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                keys[e.key.toLowerCase()] = false;
+            });
+
+            // Mouse
+            document.addEventListener('click', () => {
+                if (!isPointerLocked && gameStarted) {
+                    canvas.requestPointerLock();
+                }
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                isPointerLocked = document.pointerLockElement === canvas;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isPointerLocked) {
+                    mouse.x += e.movementX * 0.002;
+                    mouse.y -= e.movementY * 0.002;
+                    mouse.y = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, mouse.y));
+                }
+            });
+
+            document.addEventListener('mousedown', () => {
+                if (isPointerLocked && playerStats.isAlive) {
+                    shoot();
+                }
+            });
+
+            // Chat
+            const chatInput = document.getElementById('chatInput');
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const message = chatInput.value.trim();
+                    if (message && firebaseEnabled) {
+                        sendChatMessage(message);
+                    }
+                    chatInput.value = '';
+                    chatInput.style.display = 'none';
+                    canvas.focus();
+                }
+            });
+
+            // Resize
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
-            
-            scene.add(new THREE.AmbientLight(0x404040, 2));
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-            directionalLight.position.set(5, 15, 5);
-            scene.add(directionalLight);
-
-            createMap();
-
-            localPlayer = new PlayerController(camera);
-            localPlayer.handleKeyEvents();
-            scene.add(localPlayer.mesh);
-            
-            localPlayer.mesh.position.set(0, PLAYER_HEIGHT / 2, 0);
-
-            setupFirebaseListeners();
-            
-            localPlayer.enablePointerLock();
-            gameLoop();
         }
 
-        // =================================================================
-        //                 LOOP PRINCIPAL DO JOGO
-        // =================================================================
-        
-        let lastFirebaseUpdate = 0;
-        const FIREBASE_UPDATE_INTERVAL = 100;
-
-        function gameLoop() {
-            requestAnimationFrame(gameLoop);
-
-            const deltaTime = clock.getDelta();
+        // ==================== ARMAS ====================
+        function switchWeapon(index) {
+            if (index < 0 || index >= weapons.length) return;
             
-            if (document.pointerLockElement === document.body) {
-                localPlayer.update(deltaTime); 
-                updateRemotePlayers(deltaTime);
-                updateBulletVisuals(deltaTime); 
+            currentWeapon = weapons[index];
+            currentAmmo = currentWeapon.ammo;
+            reserveAmmo = currentWeapon.maxAmmo;
+            playerStats.currentWeapon = index;
+            
+            updateHUD();
+        }
+
+        function reload() {
+            if (isReloading || currentAmmo === currentWeapon.ammo || currentWeapon.name === 'Knife') return;
+            
+            isReloading = true;
+            
+            setTimeout(() => {
+                const needed = currentWeapon.ammo - currentAmmo;
+                const toReload = Math.min(needed, reserveAmmo);
+                currentAmmo += toReload;
+                reserveAmmo -= toReload;
+                isReloading = false;
+                updateHUD();
+            }, 1500);
+        }
+
+        function shoot() {
+            if (!canFire || isReloading || currentAmmo <= 0) return;
+            
+            if (currentWeapon.name !== 'Knife') {
+                currentAmmo--;
+            }
+            
+            canFire = false;
+            setTimeout(() => canFire = true, currentWeapon.fireRate);
+
+            // Raycast para detectar hit
+            const raycaster = new THREE.Raycaster();
+            const direction = new THREE.Vector3();
+            
+            // Adicionar spread
+            const spread = currentWeapon.spread;
+            direction.set(
+                (Math.random() - 0.5) * spread,
+                (Math.random() - 0.5) * spread,
+                -1
+            ).normalize();
+            
+            camera.getWorldDirection(direction);
+            raycaster.set(camera.position, direction);
+
+            // Verificar colisão com outros jogadores
+            const otherPlayers = Object.values(players);
+            const intersects = raycaster.intersectObjects(otherPlayers.map(p => p.mesh).filter(Boolean));
+
+            if (intersects.length > 0 && firebaseEnabled) {
+                const hitPlayer = intersects[0].object.userData.playerId;
+                const isHeadshot = intersects[0].point.y > intersects[0].object.position.y + 0.7;
+                const damage = isHeadshot ? currentWeapon.damage * 2 : currentWeapon.damage;
                 
-                const now = performance.now();
-                if (now - lastFirebaseUpdate > FIREBASE_UPDATE_INTERVAL) {
-                    db.ref(`rooms/default/players/${localPlayerId}`).update({
-                        pos: localPlayer.getPosition(),
-                        rotY: localPlayer.getRotation(),
-                        health: localPlayer.health, 
-                    });
-                    lastFirebaseUpdate = now;
+                // Enviar hit para Firebase
+                database.ref(`rooms/${roomId}/players/${hitPlayer}/health`).transaction(health => {
+                    return Math.max(0, (health || 100) - damage);
+                });
+
+                if (isHeadshot) {
+                    addKillFeed('HEADSHOT!', '#ff0000');
                 }
             }
 
+            // Efeito visual de tiro (muzzle flash)
+            createMuzzleFlash();
+            
+            updateHUD();
+        }
+
+        function createMuzzleFlash() {
+            const flash = new THREE.PointLight(0xffaa00, 2, 3);
+            flash.position.copy(camera.position);
+            flash.position.y -= 0.2;
+            scene.add(flash);
+            
+            setTimeout(() => scene.remove(flash), 50);
+        }
+
+        // ==================== MOVIMENTO ====================
+        function updatePlayer(delta) {
+            if (!playerStats.isAlive) return;
+
+            // Rotação da câmera
+            camera.rotation.order = 'YXZ';
+            camera.rotation.y = mouse.x;
+            camera.rotation.x = mouse.y;
+
+            // Movimento
+            const moveSpeed = player.speed * (keys.shift ? 1.5 : 1) * (player.isCrouching ? 0.5 : 1);
+            const direction = new THREE.Vector3();
+
+            if (keys.w) direction.z -= 1;
+            if (keys.s) direction.z += 1;
+            if (keys.a) direction.x -= 1;
+            if (keys.d) direction.x += 1;
+
+            direction.normalize();
+            direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), mouse.x);
+
+            // Aplicar velocidade
+            player.velocity.x = direction.x * moveSpeed;
+            player.velocity.z = direction.z * moveSpeed;
+
+            // Gravidade
+            player.velocity.y += player.gravity * delta;
+
+            // Pulo
+            if (keys[' '] && player.isGrounded) {
+                player.velocity.y = player.jumpSpeed;
+                player.isGrounded = false;
+            }
+
+            // Agachar
+            player.isCrouching = keys.control;
+            const targetHeight = player.isCrouching ? 1.2 : 1.6;
+            camera.position.y += (targetHeight - camera.position.y) * 0.1;
+
+            // Aplicar movimento
+            const movement = player.velocity.clone().multiplyScalar(delta);
+            camera.position.add(movement);
+
+            // Colisão com chão
+            if (camera.position.y <= 1.6) {
+                camera.position.y = 1.6;
+                player.velocity.y = 0;
+                player.isGrounded = true;
+            }
+
+            // Colisão com paredes (simples)
+            if (Math.abs(camera.position.x) > 48) {
+                camera.position.x = Math.sign(camera.position.x) * 48;
+                player.velocity.x = 0;
+            }
+            if (Math.abs(camera.position.z) > 48) {
+                camera.position.z = Math.sign(camera.position.z) * 48;
+                player.velocity.z = 0;
+            }
+
+            // Atualizar posição no Firebase
+            playerStats.position = {
+                x: camera.position.x,
+                y: camera.position.y,
+                z: camera.position.z
+            };
+            playerStats.rotation = {
+                x: camera.rotation.x,
+                y: camera.rotation.y
+            };
+
+            if (firebaseEnabled) {
+                updateFirebasePlayer();
+            }
+        }
+
+        // ==================== FIREBASE ====================
+        function setupFirebase() {
+            // Registrar jogador
+            const playerRef = database.ref(`rooms/${roomId}/players/${myPlayerId}`);
+            playerRef.set({
+                name: playerStats.name,
+                health: playerStats.health,
+                kills: playerStats.kills,
+                deaths: playerStats.deaths,
+                isAlive: playerStats.isAlive,
+                position: playerStats.position,
+                rotation: playerStats.rotation,
+                currentWeapon: playerStats.currentWeapon,
+                timestamp: Date.now()
+            });
+
+            // Desconectar ao sair
+            playerRef.onDisconnect().remove();
+
+            // Escutar outros jogadores
+            database.ref(`rooms/${roomId}/players`).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                Object.keys(data).forEach(id => {
+                    if (id === myPlayerId) {
+                        // Atualizar própria saúde
+                        if (data[id].health <= 0 && playerStats.isAlive) {
+                            die();
+                        }
+                        playerStats.health = data[id].health;
+                        updateHUD();
+                        return;
+                    }
+
+                    if (!players[id]) {
+                        createOtherPlayer(id, data[id]);
+                    } else {
+                        updateOtherPlayer(id, data[id]);
+                    }
+                });
+
+                // Remover jogadores desconectados
+                Object.keys(players).forEach(id => {
+                    if (!data[id]) {
+                        removeOtherPlayer(id);
+                    }
+                });
+            });
+
+            // Escutar chat
+            database.ref(`rooms/${roomId}/chat`).limitToLast(1).on('child_added', (snapshot) => {
+                const msg = snapshot.val();
+                if (msg && msg.playerId !== myPlayerId) {
+                    addChatMessage(msg.name, msg.message);
+                }
+            });
+        }
+
+        function updateFirebasePlayer() {
+            if (!firebaseEnabled) return;
+            
+            database.ref(`rooms/${roomId}/players/${myPlayerId}`).update({
+                position: playerStats.position,
+                rotation: playerStats.rotation,
+                health: playerStats.health,
+                kills: playerStats.kills,
+                deaths: playerStats.deaths,
+                isAlive: playerStats.isAlive,
+                currentWeapon: playerStats.currentWeapon,
+                timestamp: Date.now()
+            });
+        }
+
+        function createOtherPlayer(id, data) {
+            // Criar mesh do jogador
+            const geometry = new THREE.CapsuleGeometry(0.3, 1, 4, 8);
+            const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.userData.playerId = id;
+            scene.add(mesh);
+
+            // Nome do jogador
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 64;
+            context.fillStyle = 'white';
+            context.font = 'Bold 24px Arial';
+            context.textAlign = 'center';
+            context.fillText(data.name, 128, 40);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.position.y = 1.5;
+            sprite.scale.set(2, 0.5, 1);
+
+            players[id] = {
+                mesh,
+                sprite,
+                data
+            };
+
+            mesh.add(sprite);
+        }
+
+        function updateOtherPlayer(id, data) {
+            if (!players[id]) return;
+            
+            const player = players[id];
+            player.data = data;
+
+            // Interpolar posição
+            if (data.position) {
+                player.mesh.position.lerp(
+                    new THREE.Vector3(data.position.x, data.position.y, data.position.z),
+                    0.3
+                );
+            }
+
+            // Atualizar rotação
+            if (data.rotation) {
+                player.mesh.rotation.y = data.rotation.y;
+            }
+
+            // Esconder se morto
+            player.mesh.visible = data.isAlive;
+        }
+
+        function removeOtherPlayer(id) {
+            if (players[id]) {
+                scene.remove(players[id].mesh);
+                delete players[id];
+            }
+        }
+
+        // ==================== MORTE E RESPAWN ====================
+        function die() {
+            playerStats.isAlive = false;
+            playerStats.deaths++;
+            
+            document.getElementById('deathScreen').style.display = 'block';
+            
+            let respawnTime = 5;
+            const respawnInterval = setInterval(() => {
+                respawnTime--;
+                document.getElementById('respawnTimer').textContent = respawnTime;
+                
+                if (respawnTime <= 0) {
+                    clearInterval(respawnInterval);
+                    respawn();
+                }
+            }, 1000);
+            
+            updateHUD();
+        }
+
+        function respawn() {
+            playerStats.isAlive = true;
+            playerStats.health = 100;
+            
+            // Spawn aleatório
+            const spawnPoints = [
+                new THREE.Vector3(-30, 1.6, -30),
+                new THREE.Vector3(30, 1.6, 30),
+                new THREE.Vector3(-30, 1.6, 30),
+                new THREE.Vector3(30, 1.6, -30)
+            ];
+            const spawn = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+            camera.position.copy(spawn);
+            
+            // Resetar armas
+            switchWeapon(0);
+            
+            document.getElementById('deathScreen').style.display = 'none';
+            
+            if (firebaseEnabled) {
+                updateFirebasePlayer();
+            }
+            
+            updateHUD();
+        }
+
+        // ==================== HUD ====================
+        function updateHUD() {
+            document.getElementById('health').textContent = `❤️ HP: ${playerStats.health}`;
+            document.getElementById('weapon').textContent = `${currentWeapon.icon} ${currentWeapon.name}`;
+            
+            if (currentWeapon.name === 'Knife') {
+                document.getElementById('ammo').textContent = '🔪 Melee';
+            } else {
+                document.getElementById('ammo').textContent = `📦 ${currentAmmo} / ${reserveAmmo}`;
+            }
+            
+            document.getElementById('score').textContent = `Kills: ${playerStats.kills} | Deaths: ${playerStats.deaths}`;
+        }
+
+        function addKillFeed(text, color = 'white') {
+            const feed = document.getElementById('killFeed');
+            const killDiv = document.createElement('div');
+            killDiv.className = 'kill';
+            killDiv.style.color = color;
+            killDiv.textContent = text;
+            feed.prepend(killDiv);
+            
+            setTimeout(() => killDiv.remove(), 5000);
+        }
+
+        function addChatMessage(name, message) {
+            const chat = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.innerHTML = `<strong>${name}:</strong> ${message}`;
+            chat.appendChild(msgDiv);
+            chat.scrollTop = chat.scrollHeight;
+            
+            setTimeout(() => msgDiv.remove(), 10000);
+        }
+
+        function sendChatMessage(message) {
+            if (!firebaseEnabled) return;
+            
+            database.ref(`rooms/${roomId}/chat`).push({
+                playerId: myPlayerId,
+                name: playerStats.name,
+                message,
+                timestamp: Date.now()
+            });
+            
+            addChatMessage(playerStats.name, message);
+        }
+
+        // ==================== GAME LOOP ====================
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (!gameStarted) return;
+            
+            const delta = Math.min(clock.getDelta(), 0.1);
+            
+            updatePlayer(delta);
+            
             renderer.render(scene, camera);
         }
 
-        // =================================================================
-        //                 LÓGICA DO LOBBY (SETUP)
-        // =================================================================
-        
-        document.getElementById('joinButton').addEventListener('click', () => {
-            localPlayerNick = document.getElementById('nickInput').value.trim() || 'SemNick';
-            localPlayerId = db.ref().push().key; 
-            
-            if (localPlayerId && localPlayerNick) {
-                db.ref(`rooms/default/players/${localPlayerId}`).set({
-                    nick: localPlayerNick,
-                    pos: { x: 0, y: PLAYER_HEIGHT / 2, z: 0 },
-                    rotY: 0,
-                    health: 100,
-                    kills: 0,
-                    deaths: 0,
-                    connectedAt: firebase.database.ServerValue.TIMESTAMP
-                }).then(() => {
-                    initGame();
-                }).catch(error => {
-                    alert('Erro ao conectar ao Firebase. Verifique suas regras de segurança ou conexão: ' + error.message);
-                    console.error('Firebase Error:', error);
-                });
-            } else {
-                alert('Por favor, digite um Nickname válido.');
-            }
-        });
-
-        window.addEventListener('beforeunload', () => {
-            if (localPlayerId) {
-                db.ref(`rooms/default/players/${localPlayerId}`).remove();
-            }
-        });
-
+        // ==================== INICIAR ====================
+        console.log('%c🎮 CS FPS Multiplayer', 'font-size: 24px; color: #ff6b35; font-weight: bold;');
+        console.log('%cControles:', 'font-size: 16px; color: #00ff00;');
+        console.log('WASD - Mover');
+        console.log('Mouse - Mirar');
+        console.log('Click - Atirar');
+        console.log('Space - Pular');
+        console.log('Shift - Correr');
+        console.log('Ctrl - Agachar');
+        console.log('R - Recarregar');
+        console.log('1-3 - Trocar arma');
+        console.log('T - Chat');
+        console.log('%c\nDica: Configure o Firebase para multiplayer funcionar!', 'color: yellow;');
     </script>
 </body>
 </html>
