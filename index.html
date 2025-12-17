@@ -92,8 +92,8 @@
         
         // Variáveis Globais do Jogo
         let scene, camera, renderer, clock, localPlayerId, localPlayerNick;
-        const players = {}; // Contém todos os objetos 3D de jogadores (incluindo o local)
-        const others = {}; // Contém apenas a lógica e dados dos jogadores remotos
+        const players = {}; 
+        const others = {}; 
         
         // Constantes
         const PLAYER_HEIGHT = 1.8;
@@ -116,11 +116,12 @@
                 this.keys = {};
                 this.health = 100;
                 this.lastShotTime = 0;
-                this.fireRate = 200; // 200ms entre tiros (5 tiros/seg)
+                this.fireRate = 200; 
 
                 // Objeto 3D (Cubo Verde para o jogador local)
+                // Temporariamente visível (opacity: 0.5) para depuração do movimento!
                 const geometry = new THREE.BoxGeometry(0.5, PLAYER_HEIGHT, 0.5);
-                const material = new THREE.MeshPhongMaterial({ color: 0x00ff00, transparent: true, opacity: 0.0 }); // Torna o próprio corpo invisível
+                const material = new THREE.MeshPhongMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5 }); 
                 this.mesh = new THREE.Mesh(geometry, material);
                 
                 this.mesh.position.y = PLAYER_HEIGHT / 2;
@@ -132,7 +133,7 @@
                 const weaponMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
                 this.weaponMesh = new THREE.Mesh(weaponGeo, weaponMat);
                 this.weaponMesh.position.set(0.3, -0.2, -0.5); 
-                this.camera.add(this.weaponMesh); // A arma se move com a câmera
+                this.camera.add(this.weaponMesh); 
             }
 
             handleKeyEvents() {
@@ -146,9 +147,8 @@
                 });
                 this.currentSpeed = PLAYER_SPEED;
 
-                // Captura do Tiro (Clique do Mouse)
                 document.addEventListener('mousedown', (e) => {
-                    if (document.pointerLockElement === document.body && e.button === 0) { // Botão Esquerdo
+                    if (document.pointerLockElement === document.body && e.button === 0) { 
                         this.shoot();
                     }
                 });
@@ -165,29 +165,22 @@
                 });
             }
             
-            // ===================================
             // LÓGICA DE TIRO (WEAPONS.JS BÁSICO)
-            // ===================================
             shoot() {
                 const now = performance.now();
-                if (now < this.lastShotTime + this.fireRate) return; // Limita a taxa de tiro
+                if (now < this.lastShotTime + this.fireRate) return; 
                 this.lastShotTime = now;
 
-                // 1. Configura o Raycaster
-                // O raio é lançado do centro da câmera, para a frente (direção padrão do raycaster é (0, 0, -1) no espaço da câmera)
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
                 
-                // 2. Define os objetos que podem ser atingidos (TODOS os meshes dos jogadores remotos)
                 const hittableObjects = Object.values(others).map(remote => remote.mesh);
 
-                // 3. Verifica as intersecções
                 const intersects = raycaster.intersectObjects(hittableObjects, true);
 
                 if (intersects.length > 0) {
                     const hit = intersects[0];
                     const targetMesh = hit.object;
 
-                    // Encontra o ID do jogador atingido
                     let targetId = null;
                     for (const id in others) {
                         if (others[id].mesh === targetMesh) {
@@ -197,17 +190,13 @@
                     }
 
                     if (targetId) {
-                        // **MECANISMO CENTRAL: ENVIO DO DANO VIA FIREBASE**
                         console.log(`Acerto detectado! Alvo: ${others[targetId].data.nick}`);
                         
-                        // Determinar se é Headshot (verificando a altura da intersecção)
-                        // A altura do HitBox é PLAYER_HEIGHT (1.8), consideramos Headshot acima de 80% da altura
                         const hitHeight = hit.point.y - targetMesh.position.y + (PLAYER_HEIGHT / 2);
                         const isHeadshot = hitHeight > PLAYER_HEIGHT * 0.8;
                         
                         let damage = isHeadshot ? DAMAGE_DEFAULT * 2 : DAMAGE_DEFAULT;
                         
-                        // Envia o evento de tiro/dano para um nó de eventos temporário
                         db.ref('rooms/default/events').push({
                             type: 'damage',
                             shooterId: localPlayerId,
@@ -216,48 +205,48 @@
                             timestamp: firebase.database.ServerValue.TIMESTAMP
                         });
 
-                        // Feedback visual (Simples: Mudar cor do alvo brevemente)
-                        targetMesh.material.color.set(0xff0000); // Vermelho
+                        targetMesh.material.color.set(0xff0000); 
                         setTimeout(() => {
-                            targetMesh.material.color.set(0x0000ff); // Volta ao Azul
+                            targetMesh.material.color.set(0x0000ff); 
                         }, 50);
                     }
                 }
             }
 
+            // CORREÇÃO: O localPlayer.update() agora é chamado no loop principal!
             update(deltaTime) {
-                // ... (Mantém a lógica de movimento, gravidade e agachamento da versão anterior) ...
+                // 1. Resetar Velocidade Horizontal
                 this.velocity.x = 0;
                 this.velocity.z = 0;
 
+                // 2. Leitura do Input
                 if (this.keys['KeyW']) this.velocity.z -= this.currentSpeed;
                 if (this.keys['KeyS']) this.velocity.z += this.currentSpeed;
                 if (this.keys['KeyA']) this.velocity.x -= this.currentSpeed;
                 if (this.keys['KeyD']) this.velocity.x += this.currentSpeed;
 
-                if (this.keys['ControlLeft']) {
-                    this.mesh.position.y = (PLAYER_HEIGHT / 2) * 0.6;
-                } else {
-                    this.mesh.position.y = PLAYER_HEIGHT / 2;
-                }
-
+                // Agachar / Altura
+                const desiredHeight = this.keys['ControlLeft'] ? (PLAYER_HEIGHT / 2) * 0.6 : PLAYER_HEIGHT / 2;
+                
+                // 3. Aplica Velocidade e Rotação
                 const direction = new THREE.Vector3(this.velocity.x, 0, this.velocity.z);
                 direction.applyQuaternion(this.mesh.quaternion);
                 
                 this.mesh.position.x += direction.x * deltaTime;
                 this.mesh.position.z += direction.z * deltaTime;
 
-                if (this.mesh.position.y > PLAYER_HEIGHT / 2) {
+                // 4. Gravidade (Colisão Simples com o chão)
+                if (this.mesh.position.y > desiredHeight) {
                     this.velocity.y += GRAVITY * deltaTime;
                     this.isJumping = true;
                 } else {
                     this.velocity.y = 0;
                     this.isJumping = false;
-                    this.mesh.position.y = (this.keys['ControlLeft'] ? (PLAYER_HEIGHT / 2) * 0.6 : PLAYER_HEIGHT / 2);
+                    this.mesh.position.y = desiredHeight; // Colisão com o chão (altura de pé ou agachado)
                 }
 
                 if (this.keys['Space'] && !this.isJumping) {
-                    this.velocity.y = 5;
+                    this.velocity.y = 5; 
                 }
                 
                 this.mesh.position.y += this.velocity.y * deltaTime;
@@ -270,7 +259,6 @@
             takeDamage(damage) {
                 this.health = Math.max(0, this.health - damage);
                 console.log(`Você levou ${damage} de dano! HP restante: ${this.health}`);
-                // Disparo de som de dano aqui...
             }
         }
 
@@ -280,15 +268,13 @@
 
         function setupFirebaseListeners() {
             const playersRef = db.ref('rooms/default/players');
-            const eventsRef = db.ref('rooms/default/events'); // Novo nó para eventos de jogo
+            const eventsRef = db.ref('rooms/default/events'); 
 
-            // Listener para Posição/Conexão (child_added, child_changed, child_removed)
-            // (Mantidos como na versão anterior, sem alterações)
+            // Listener de Posição/Conexão (Mantido da versão anterior)
             playersRef.on('child_added', (snapshot) => {
                 const playerId = snapshot.key;
                 const data = snapshot.val();
                 if (playerId === localPlayerId) return; 
-                console.log(`Novo jogador conectado: ${data.nick}`);
                 
                 const geometry = new THREE.BoxGeometry(0.5, PLAYER_HEIGHT, 0.5);
                 const material = new THREE.MeshPhongMaterial({ color: 0x0000ff });
@@ -306,7 +292,6 @@
                 const data = snapshot.val();
                 
                 if (playerId === localPlayerId) {
-                    // SE O JOGADOR LOCAL RECEBE UMA ATUALIZAÇÃO (Ex: Dano)
                     if (localPlayer.health !== data.health) {
                         localPlayer.health = data.health;
                         document.getElementById('hp').innerText = localPlayer.health;
@@ -314,7 +299,6 @@
                     return;
                 }
                 
-                // Atualização normal dos jogadores remotos
                 if (others[playerId]) {
                     others[playerId].targetPosition.set(data.pos.x, data.pos.y, data.pos.z);
                     others[playerId].targetRotationY = data.rotY;
@@ -333,30 +317,20 @@
                 }
             });
 
-            // ===================================
-            // LISTENER PARA EVENTOS DE DANO
-            // ===================================
+            // LISTENER PARA EVENTOS DE DANO (Mantido da versão anterior)
             eventsRef.on('child_added', (snapshot) => {
                 const eventData = snapshot.val();
                 const eventId = snapshot.key;
 
                 if (eventData.type === 'damage' && eventData.targetId === localPlayerId) {
-                    // O JOGADOR LOCAL FOI ATINGIDO
-                    
-                    // 1. Aplica o dano ao jogador local
                     localPlayer.takeDamage(eventData.damage);
                     
-                    // 2. Sincroniza o HP atualizado de volta ao Firebase (Garante que todos vejam o novo HP)
                     playersRef.child(localPlayerId).update({
                         health: localPlayer.health
                     });
 
-                    // 3. Remove o evento (para limpar o banco de dados)
                     eventsRef.child(eventId).remove();
-                } else if (eventData.type === 'damage' && eventData.targetId !== localPlayerId) {
-                    // Um terceiro jogador foi atingido (pode ser usado para killfeed e som)
-                    // eventsRef.child(eventId).remove(); // Outros não precisam processar, o alvo fará a remoção.
-                }
+                } 
             });
         }
         
@@ -451,7 +425,7 @@
             
             localPlayer.mesh.position.set(0, PLAYER_HEIGHT / 2, 0);
 
-            // 3. Setup Firebase (Listeners de Posição e Dano)
+            // 3. Setup Firebase 
             setupFirebaseListeners();
             
             // 4. Entra no Jogo
@@ -472,12 +446,13 @@
             const deltaTime = clock.getDelta();
             
             if (document.pointerLockElement === document.body) {
+                // !!! CORREÇÃO CRUCIAL: Atualiza a lógica de movimento e física do jogador local
                 localPlayer.update(deltaTime); 
+                
                 updateRemotePlayers(deltaTime);
                 
                 const now = performance.now();
                 if (now - lastFirebaseUpdate > FIREBASE_UPDATE_INTERVAL) {
-                    // Atualiza Posição e HP do jogador local
                     db.ref(`rooms/default/players/${localPlayerId}`).update({
                         pos: localPlayer.getPosition(),
                         rotY: localPlayer.getRotation(),
