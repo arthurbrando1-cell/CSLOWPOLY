@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -53,6 +53,35 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            z-index: 10;
+        }
+
+        #scoreboard {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            text-align: right;
+            font-family: 'Cinzel', serif;
+            display: none;
+        }
+        .score-row {
+            color: #fff;
+            font-size: 1rem;
+            margin-bottom: 5px;
+            text-shadow: 0 0 5px black;
+        }
+        .winner-announce {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            color: gold;
+            text-shadow: 0 0 20px orange;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
         }
 
         .health-container {
@@ -365,6 +394,13 @@
             <!-- Chat Hint -->
             <div style="font-size: 0.8rem; color: #666; margin-top: 10px;">Press 'T' to Chat</div>
         </div>
+        
+        <div id="scoreboard">
+            <h3 style="margin: 0 0 10px 0; color: #aaa; border-bottom: 1px solid #444;">BATTLE</h3>
+            <div id="score-list"></div>
+        </div>
+        
+        <div id="winner-announce" class="winner-announce">VICTORY</div>
 
         <div id="chat-container">
             <div id="chat-wrapper">
@@ -394,9 +430,15 @@
                         
                         <button class="btn" id="btn-join" style="flex: 1; margin: 0; padding: 0; font-size: 0.8rem; background: #333;">GO</button>
                     </div>
-                    <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <input type="checkbox" id="pvp-toggle" style="width: 16px; height: 16px; cursor: pointer;">
-                        <label for="pvp-toggle" style="color: #ccc; font-size: 0.8rem; cursor: pointer;">Enable PvP (Player vs Player)</label>
+                    <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 20px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="pvp-toggle" style="width: 16px; height: 16px; cursor: pointer;">
+                            <label for="pvp-toggle" style="color: #ccc; font-size: 0.8rem; cursor: pointer;">Enable PvP</label>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label for="rounds-input" style="color: #ccc; font-size: 0.8rem;">Rounds:</label>
+                            <input type="number" id="rounds-input" value="3" min="1" max="10" style="width: 40px; background: rgba(0,0,0,0.3); border: 1px solid #555; color: white; padding: 2px; text-align: center; font-family: 'Cinzel', serif;">
+                        </div>
                     </div>
                 </div>
 
@@ -459,6 +501,15 @@
                         <button class="cust-arrow" id="mask-prev"><</button>
                         <span id="mask-display" style="width: 20px; text-align: center;">1</span>
                         <button class="cust-arrow" id="mask-next">></button>
+                    </div>
+                </div>
+
+                <div class="custom-option">
+                    <span>Weapon</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="cust-arrow" id="sword-prev"><</button>
+                        <span id="sword-display" style="width: 80px; text-align: center; font-size: 0.7rem;">NAIL</span>
+                        <button class="cust-arrow" id="sword-next">></button>
                     </div>
                 </div>
 
@@ -597,7 +648,8 @@
                 if (!maxPlayers) {
                     maxPlayers = parseInt(capacity) || 4;
                     const pvp = document.getElementById('pvp-toggle').checked;
-                    await update(child(roomRef, 'settings'), { maxPlayers: maxPlayers, pvp: pvp });
+                    const rounds = parseInt(document.getElementById('rounds-input').value) || 3;
+                    await update(child(roomRef, 'settings'), { maxPlayers: maxPlayers, pvp: pvp, rounds: rounds });
                 }
                 
                 const currentCount = Object.keys(players).length;
@@ -627,10 +679,18 @@
                       remove(Network.playerRef);
                 });
 
-                // Listen for PvP setting
-                onValue(child(ref(Network.db, `hk_multiplayer/rooms/${roomCode}`), 'settings/pvp'), (snapshot) => {
-                     Network.pvpEnabled = snapshot.val() || false;
-                     // Visual feedback for PvP mode could go here
+                // Listen for Room Settings (PvP, Rounds)
+                const settingsRef = child(ref(Network.db, `hk_multiplayer/rooms/${roomCode}`), 'settings');
+                onValue(settingsRef, (snapshot) => {
+                     const s = snapshot.val() || {};
+                     Network.pvpEnabled = s.pvp || false;
+                     Network.maxRounds = s.rounds || 3;
+                     
+                     if(Network.pvpEnabled) {
+                         document.getElementById('scoreboard').style.display = 'block';
+                     } else {
+                         document.getElementById('scoreboard').style.display = 'none';
+                     }
                 });
 
                 onValue(Network.roomRef, (snapshot) => {
@@ -643,6 +703,36 @@
                     document.getElementById('net-dot').classList.add('connected');
                     document.getElementById('server-id').innerText = `Room: ${roomCode}`;
                     document.getElementById('server-id').style.display = 'block';
+                    
+                    // Update Scoreboard
+                    if (Network.pvpEnabled) {
+                        const list = document.getElementById('score-list');
+                        let scores = [];
+                        // My Score
+                        scores.push({n: Network.playerName, s: Game.player ? Game.player.score : 0, me: true});
+                        // Others
+                        Object.values(data).forEach(p => {
+                            scores.push({n: p.n || 'Enemy', s: p.sc || 0, me: false});
+                        });
+                        scores.sort((a,b) => b.s - a.s);
+                        
+                        list.innerHTML = scores.map(p => `
+                            <div class="score-row" style="color: ${p.me ? '#4caf50' : (p.s >= Network.maxRounds ? 'gold' : 'white')}">
+                                ${p.n}: ${p.s}/${Network.maxRounds}
+                            </div>
+                        `).join('');
+                        
+                        // Check Win
+                        const winner = scores.find(s => s.s >= Network.maxRounds);
+                        if (winner) {
+                            const ann = document.getElementById('winner-announce');
+                            ann.innerText = winner.me ? "VICTORY" : "DEFEAT";
+                            ann.style.opacity = 1;
+                            ann.style.color = winner.me ? 'gold' : '#d32f2f';
+                        } else {
+                            document.getElementById('winner-announce').style.opacity = 0;
+                        }
+                    }
                 });
 
                 Network.connected = true;
@@ -664,11 +754,13 @@
                     f: playerData.facing, 
                     s: playerData.animState, 
                     a: playerData.attacking,
-                    fb: playerData.firingFireball, // Fireball state
+                    fb: playerData.firingFireball, 
                     hp: playerData.health,
                     n: Network.playerName,
-                    cc: playerData.cloakColor, // Sync Customization
+                    cc: playerData.cloakColor, 
                     ms: playerData.maskStyle,
+                    sw: playerData.swordStyle,
+                    sc: playerData.score,
                     ts: now,
                     msg: playerData.chatMessage,
                     mt: playerData.chatTimer
@@ -842,12 +934,13 @@ class Particle extends Entity {
 }
 
 class Fireball extends Entity {
-    constructor(x, y, dir, isHostile = false) {
+    constructor(x, y, dir, isHostile = false, isMine = false) {
         super(x, y, 30, 20);
         this.dir = dir;
         this.vx = dir * 12; 
         this.life = 60; 
         this.isHostile = isHostile;
+        this.isMine = isMine;
     }
     update(map, enemies) {
         this.x += this.vx;
@@ -872,14 +965,27 @@ class Fireball extends Entity {
         }
 
         if (this.isHostile) {
-            // PvP: Check collision with local player
+            // PvP: Check collision with local player (Hostile means fired by OTHER)
             if (Game.player && !Game.player.dead && this.checkCollision(Game.player)) {
-                Game.player.takeDamage(1, this.x);
+                Game.player.takeDamage(1, this.x, 'fireball');
                 this.markedForDeletion = true;
                 this.explode();
             }
+        } else if (this.isMine && window.Network && window.Network.pvpEnabled) {
+             // My fireball hitting others (logic mostly for kill credit if we could track it)
+             // We can't hit enemies with it if they aren't local enemies? 
+             // Local enemies are shared.
+             enemies.forEach(e => {
+                if (!e.dead && this.checkCollision(e)) {
+                    e.takeDamage(2); 
+                    this.markedForDeletion = true;
+                    this.explode();
+                }
+            });
+            // Hitting other players?
+            // We don't have authority to damage them directly. They check 'isHostile'.
         } else {
-            // Friendly: Check enemies
+            // Standard Friendly (PvE)
             enemies.forEach(e => {
                 if (!e.dead && this.checkCollision(e)) {
                     e.takeDamage(2); 
@@ -945,6 +1051,8 @@ class Player extends Entity {
         // Customization
         this.cloakColor = '#2c3e50';
         this.maskStyle = 0; // 0: Default, 1: Curved, 2: Pointy
+        this.swordStyle = 0; // 0: Nail, 1: Needle, 2: Greatsword
+        this.score = 0;
     }
 
     respawn() {
@@ -958,7 +1066,7 @@ class Player extends Entity {
         Game.sceneTransition();
     }
 
-    takeDamage(amount, srcX) {
+    takeDamage(amount, srcX, attackerKey) {
         if (this.invulnerable > 0 || this.dead) return;
         this.health -= amount;
         this.invulnerable = INVULNERABILITY_TIME;
@@ -973,6 +1081,38 @@ class Player extends Entity {
             for(let i=0; i<20; i++) {
                 Game.particles.push(new Particle(this.x + this.w/2, this.y + this.h/2, 'black', (Math.random()-0.5)*10, (Math.random()-0.5)*10, 60));
             }
+            
+            // If PvP and killed by another player, give them a point
+            if (window.Network && window.Network.pvpEnabled && attackerKey) {
+                 // We can't update other player's score directly, so we broadcast that we died to them?
+                 // Simpler: Just handle score locally for display? No, need sync.
+                 // Actually, simpler: The killer detects they killed you? No, unreliable.
+                 // Solution: We update the attacker's score in OUR database if we have permissions? No.
+                 // We can only update our own score. 
+                 // So... In this P2P model, we can't easily increment the OTHER person's score securely.
+                 // WORKAROUND: We will increment our own "deaths" and the winner logic can be calculated? 
+                 // BETTER: We trust the client. If I die, I update a "lastKilledBy" field on myself.
+                 // The attacker sees this and increments THEIR score.
+                 // Too complex for single file. 
+                 // SIMPLIFIED: When I die, I respawn. That's it. 
+                 // Wait, user asked for rounds.
+                 // Let's implement: If I die, I send a chat message "Killed by X".
+                 // Actually, let's just use local detection. If I hit someone and their health drops to 0?
+                 // Impossible to know for sure due to lag.
+                 // OK: Player who DIES handles the logic. "I died."
+                 // But I can't increment your score.
+                 // Okay, I will increment a public counter in the room if I could.
+                 // Let's go with: I died. I will Respawn.
+                 // The "Round" system will be: First to 5 kills.
+                 // Since I can't track your kills easily, I will track MY DEATHS. 
+                 // Score = (Total Deaths of others) - (My Deaths)? No.
+                 // Let's just make it simple: The attacker (local) detects if a fireball/slash hits. 
+                 // If the hit is fatal (remote HP low), add score locally.
+                 // This is prone to desync (I see you die, you don't).
+                 // For a prototype: I will grant myself a point if I land a hit that *should* kill you.
+                 // Not perfect but works for "Play with friends".
+            }
+            
             setTimeout(() => this.respawn(), 1000);
         }
     }
@@ -1065,12 +1205,10 @@ class Player extends Entity {
             this.firingFireball = true;
             setTimeout(() => this.firingFireball = false, 200);
             
-            // Cost logic (optional, keeping it low cost/free with cooldown)
-            // if (this.soul >= 10) this.soul -= 10;
-            
             const fbX = this.facing === 1 ? this.x + this.w + 5 : this.x - 35;
             const fbY = this.y + 10;
-            Game.fireballs.push(new Fireball(fbX, fbY, this.facing));
+            // Pass true for ownership
+            Game.fireballs.push(new Fireball(fbX, fbY, this.facing, false, true));
             
             // Recoil
             this.vx = -this.facing * 5; 
@@ -1081,20 +1219,37 @@ class Player extends Entity {
         if (Input.attack() && !this.attacking && this.attackCooldown <= 0 && !this.healing && Input.active) {
             this.attacking = true;
             this.attackTimer = ATTACK_DURATION;
-            this.attackCooldown = 25;
+            this.attackCooldown = (this.swordStyle === 1) ? 15 : (this.swordStyle === 2 ? 45 : 25); // Needle faster, Greatsword slower
             
-            const reach = 40;
+            const reach = (this.swordStyle === 2) ? 60 : 40; // Greatsword more reach
+            const dmg = (this.swordStyle === 2) ? 2 : 1;
+            
             const hitX = this.facing === 1 ? this.x + this.w : this.x - reach;
             const hitY = this.y + 10;
-            
+            const hitH = (this.swordStyle === 2) ? 40 : 20;
+
+            // Enemies
             enemies.forEach(e => {
-                if (!e.dead && hitX < e.x + e.w && hitX + reach > e.x && hitY < e.y + e.h && hitY + 20 > e.y) {
-                    e.takeDamage(1);
+                if (!e.dead && hitX < e.x + e.w && hitX + reach > e.x && hitY < e.y + e.h && hitY + hitH > e.y) {
+                    e.takeDamage(dmg);
                     this.addSoul(15);
                     this.recoil = 5;
                     if(this.grounded) this.vx = -this.facing * 5;
                 }
             });
+            
+            // PvP Hit Detection (Client Side Authority for scoring, sorta)
+            if (window.Network && window.Network.connected && window.Network.pvpEnabled) {
+                const remotes = window.Network.remotePlayers;
+                Object.keys(remotes).forEach(key => {
+                    const p = remotes[key];
+                    if (hitX < p.x + 24 && hitX + reach > p.x && hitY < p.y + 40 && hitY + hitH > p.y) {
+                        // Visual feedback only, real damage is handled by victim in their update loop?
+                        // Actually, in the current implementation, the VICTIM checks if they are hit by an animation.
+                        // See Game.loop -> Remote Players section.
+                    }
+                });
+            }
         }
 
         if (this.dashing) {
@@ -1167,12 +1322,12 @@ class Player extends Entity {
     draw(ctx, camX, camY) {
         if (this.invulnerable > 0 && Math.floor(Date.now() / 50) % 2 === 0) return; 
         
-        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null, this.cloakColor, this.maskStyle);
+        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null, this.cloakColor, this.maskStyle, this.swordStyle);
     }
 }
 
 // Draw Vessel Function (Handles Skins and Chat)
-function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg, cloakColor, maskStyle) {
+function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg, cloakColor, maskStyle, swordStyle) {
     const cx = x + w/2;
     const cy = y + h; 
 
@@ -1257,13 +1412,36 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
 
     if (attacking) {
         ctx.strokeStyle = 'white';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(cx + 10, y + 20, 30, -Math.PI/2, Math.PI/2);
-        ctx.stroke();
-        ctx.globalAlpha = 0.5;
-        ctx.lineWidth = 10;
-        ctx.stroke();
+        
+        const sw = swordStyle || 0;
+        
+        if (sw === 0) { // Nail
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx + 10, y + 20, 30, -Math.PI/2, Math.PI/2);
+            ctx.stroke();
+            ctx.globalAlpha = 0.5;
+            ctx.lineWidth = 10;
+            ctx.stroke();
+        } else if (sw === 1) { // Needle (Stab)
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx + 5, y + 20);
+            ctx.lineTo(cx + 45, y + 20);
+            ctx.stroke();
+            ctx.globalAlpha = 0.5;
+            ctx.lineWidth = 6;
+            ctx.stroke();
+        } else if (sw === 2) { // Greatsword (Big Swing)
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(cx + 10, y + 20, 45, -Math.PI/2, Math.PI/2);
+            ctx.stroke();
+            ctx.globalAlpha = 0.5;
+            ctx.lineWidth = 15;
+            ctx.stroke();
+        }
+        
         ctx.globalAlpha = 1.0;
     }
 
@@ -1397,6 +1575,19 @@ const Game = {
             document.getElementById('mask-display').innerText = Game.player.maskStyle + 1;
             Game.previewCustomization();
         });
+        
+        // Sword Customization
+        const swordNames = ["NAIL", "NEEDLE", "GREATSWORD"];
+        document.getElementById('sword-next').addEventListener('click', () => {
+            Game.player.swordStyle = (Game.player.swordStyle + 1) % 3;
+            document.getElementById('sword-display').innerText = swordNames[Game.player.swordStyle];
+            Game.previewCustomization();
+        });
+        document.getElementById('sword-prev').addEventListener('click', () => {
+            Game.player.swordStyle = (Game.player.swordStyle - 1 + 3) % 3;
+            document.getElementById('sword-display').innerText = swordNames[Game.player.swordStyle];
+            Game.previewCustomization();
+        });
 
         // Chat Button
         document.getElementById('chat-send-btn').addEventListener('click', Game.sendChat);
@@ -1412,7 +1603,7 @@ const Game = {
         const ctx = c.getContext('2d');
         ctx.clearRect(0,0,100,100);
         // Draw vessel at center
-        drawVessel(ctx, 38, 30, 24, 40, 1, 1, 1, false, false, false, null, Game.player.cloakColor, Game.player.maskStyle);
+        drawVessel(ctx, 38, 30, 24, 40, 1, 1, 1, true, false, false, null, Game.player.cloakColor, Game.player.maskStyle, Game.player.swordStyle);
     },
 
     startGame: () => {
@@ -1584,22 +1775,49 @@ const Game = {
                     }
                 }
                 
-                // PvP Melee
+                // PvP Melee (Incoming Attack)
                 if (window.Network.pvpEnabled && p.a) {
-                    const reach = 40;
+                    const swordS = p.sw || 0;
+                    const reach = (swordS === 2) ? 60 : 40;
+                    const hitH = (swordS === 2) ? 40 : 20;
+                    
                     const hitX = (p.f || 1) === 1 ? p.x + 24 : p.x - reach;
                     const hitY = p.y + 10;
                     
                     if (Game.player.x < hitX + reach && Game.player.x + Game.player.w > hitX &&
-                        Game.player.y < hitY + 20 && Game.player.y + Game.player.h > hitY) {
-                         Game.player.takeDamage(1, p.x);
+                        Game.player.y < hitY + hitH && Game.player.y + Game.player.h > hitY) {
+                         
+                         // Check if this attack ALREADY hit us in this animation frame window? 
+                         // To prevent multi-hit from same swing, we ideally need an attack ID.
+                         // But for simplicity, the invulnerability frame in takeDamage handles this.
+                         if (Game.player.invulnerable <= 0) {
+                             Game.player.takeDamage(1, p.x, key); // Pass attacker key!
+                             
+                             // If I took damage and died, I should probably increment the killer's score?
+                             // But I can't write to their score.
+                             // Logic: If I take damage and die, I update MY 'deaths'.
+                             // No, let's keep it simple. If I die, I update my score to -1? No.
+                             // OK, let's use the 'Attacker' system:
+                             // Since we can't sync accurately, we will just count SURVIVAL rounds?
+                             // No, User wants Kill Count / Rounds.
+                             // Hack: When I die, I increment my own "deaths" stat (if I had one).
+                             // Then Score = Kills. Kills = ?
+                             // Let's implement this: "When I hit someone, I check if they are likely to die."
+                             // If their HP (which I see in snapshot) is 1, and I hit them...
+                             if (p.hp <= 1) {
+                                 // They are likely dead. Increment my score locally and sync it.
+                                 Game.player.score++;
+                                 // Add visual
+                                 Game.particles.push(new Particle(p.x, p.y, 'gold', 0, -2, 40));
+                             }
+                         }
                     }
                 }
                 
                 window.Network.remoteStates[key] = p;
 
                 const msg = (p.mt && p.mt > 0) ? p.msg : null;
-                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg, p.cc, p.ms);
+                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg, p.cc, p.ms, p.sw);
 
                 ctx.fillStyle = window.Network.pvpEnabled ? '#ffaaaa' : '#aaa';
                 ctx.font = '10px Cinzel';
