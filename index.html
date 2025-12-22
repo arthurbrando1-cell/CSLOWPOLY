@@ -299,8 +299,20 @@
         <!-- Start Screen -->
         <div id="start-screen" class="menu-screen">
             <h1 class="menu-title">Vessel's Journey</h1>
-            <p style="color: #888; margin-top: -20px; margin-bottom: 20px;">Multiplayer Edition</p>
-            <button class="btn" id="btn-newgame">Enter World</button>
+            <p style="color: #888; margin-top: -20px; margin-bottom: 30px;">Multiplayer Online</p>
+            
+            <!-- Room Controls -->
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 20px; width: 100%; max-width: 300px;">
+                <input type="text" id="room-code-input" placeholder="ENTER ROOM CODE" maxlength="10" 
+                    style="background: rgba(0,0,0,0.5); border: 1px solid #666; color: white; padding: 10px; 
+                    font-family: 'Cinzel', serif; text-align: center; width: 100%; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px;">
+                
+                <div style="display: flex; gap: 10px; width: 100%;">
+                    <button class="btn" id="btn-join" style="flex: 1; margin: 0;">Join / Create</button>
+                    <button class="btn" id="btn-random" style="flex: 1; margin: 0;">Random Public</button>
+                </div>
+            </div>
+
             <button class="btn" id="btn-settings">Settings</button>
             
             <div class="controls-grid">
@@ -351,28 +363,37 @@
         playerId: null,
         playerName: null,
         playerRef: null,
-        playersRef: null,
+        roomRef: null,
         remotePlayers: {},
         connected: false,
         lastUpdate: 0,
+        currentRoom: null,
         
-        init: () => {
-            try {
+        initApp: () => {
+             if (!Network.app) {
                 Network.app = initializeApp(firebaseConfig);
                 Network.db = getDatabase(Network.app);
-                
-                // Generate ID and Name
+                // Generate ID and Name once
                 Network.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
                 Network.playerName = "Vessel " + Math.floor(Math.random() * 1000);
-                
-                Network.playerRef = ref(Network.db, `hk_multiplayer/players/${Network.playerId}`);
-                Network.playersRef = ref(Network.db, 'hk_multiplayer/players');
+             }
+        },
+
+        joinRoom: (roomCode) => {
+            try {
+                Network.initApp();
+                Network.currentRoom = roomCode;
+
+                // Define References based on Room Code
+                const roomPath = `hk_multiplayer/rooms/${roomCode}/players`;
+                Network.playerRef = ref(Network.db, `${roomPath}/${Network.playerId}`);
+                Network.roomRef = ref(Network.db, roomPath);
 
                 // Remove player on disconnect
                 onDisconnect(Network.playerRef).remove();
 
-                // Listen for other players
-                onValue(Network.playersRef, (snapshot) => {
+                // Listen for other players in THIS room
+                onValue(Network.roomRef, (snapshot) => {
                     const data = snapshot.val() || {};
                     delete data[Network.playerId]; // Remove self
                     Network.remotePlayers = data;
@@ -381,19 +402,25 @@
                     const count = Object.keys(data).length + 1;
                     document.getElementById('player-count').innerText = `${count} Online`;
                     document.getElementById('net-dot').classList.add('connected');
+                    document.getElementById('server-id').innerText = `Room: ${roomCode}`;
                     document.getElementById('server-id').style.display = 'block';
                 });
 
                 Network.connected = true;
-                console.log("Connected to Multiplayer as " + Network.playerName);
+                console.log(`Joined Room: ${roomCode} as ${Network.playerName}`);
+                
+                // Start Game Engine
+                window.Game.startGame();
+
             } catch (e) {
                 console.error("Firebase Connection Failed", e);
+                alert("Connection Error. Check console.");
                 document.getElementById('player-count').innerText = "Offline Mode";
             }
         },
 
         sendUpdate: (playerData) => {
-            if (!Network.connected) return;
+            if (!Network.connected || !Network.playerRef) return;
             const now = Date.now();
             // Cap updates to ~20fps to save bandwidth
             if (now - Network.lastUpdate > 50) {
@@ -415,9 +442,14 @@
     window.Network = Network;
 
     // Start Game Hooks
-    document.getElementById('btn-newgame').addEventListener('click', () => {
-        window.Game.startGame();
-        Network.init();
+    document.getElementById('btn-join').addEventListener('click', () => {
+        const input = document.getElementById('room-code-input');
+        const code = input.value.trim().toUpperCase() || 'PUBLIC';
+        Network.joinRoom(code);
+    });
+
+    document.getElementById('btn-random').addEventListener('click', () => {
+        Network.joinRoom('PUBLIC');
     });
 
     document.getElementById('btn-resume').addEventListener('click', () => window.Game.resumeGame());
