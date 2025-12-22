@@ -272,6 +272,36 @@
             font-size: 20px;
             backdrop-filter: blur(2px);
         }
+
+        /* Server List Styles */
+        .server-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid transparent;
+            cursor: default;
+            transition: background 0.2s;
+        }
+        .server-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #444;
+        }
+        .btn-join-small {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #555;
+            color: #ddd;
+            padding: 4px 10px;
+            font-family: 'Cinzel', serif;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-join-small:hover {
+            background: #fff;
+            color: #000;
+        }
     </style>
 </head>
 <body>
@@ -302,29 +332,42 @@
             <p style="color: #888; margin-top: -20px; margin-bottom: 30px;">Multiplayer Online</p>
             
             <!-- Room Controls -->
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 350px; background: rgba(0,0,0,0.5); padding: 20px; border: 1px solid #444; border-radius: 8px;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 400px; background: rgba(0,0,0,0.8); padding: 20px; border: 1px solid #444; border-radius: 8px;">
                 
-                <div style="width: 100%; text-align: center;">
-                    <label style="display: block; color: #aaa; font-size: 0.8rem; margin-bottom: 5px;">CREATE OR JOIN ROOM</label>
-                    <input type="text" id="room-code-input" placeholder="TYPE ROOM CODE HERE" maxlength="15" 
-                        style="background: rgba(255,255,255,0.1); border: 1px solid #666; color: #fff; padding: 12px; 
-                        font-family: 'Cinzel', serif; text-align: center; width: 100%; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; box-sizing: border-box;">
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
-                    <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                        <span style="color: #aaa; font-size: 0.7rem;">MAX CAPACITY</span>
-                        <input type="number" id="capacity-input" value="4" min="2" max="32" 
-                            style="background: rgba(0,0,0,0.3); border: 1px solid #555; color: white; padding: 8px; 
-                            font-family: 'Cinzel', serif; text-align: center; width: 80px;">
+                <!-- CREATE SECTION -->
+                <div style="width: 100%; padding-bottom: 15px; border-bottom: 1px solid #333;">
+                    <label style="display: block; color: #fff; font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; text-align: center;">CREATE OR JOIN BY CODE</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="room-code-input" placeholder="Room Name" maxlength="15" 
+                            style="flex: 2; background: rgba(255,255,255,0.1); border: 1px solid #666; color: #fff; padding: 8px; 
+                            font-family: 'Cinzel', serif; text-align: center; font-size: 1rem; text-transform: uppercase;">
+                        
+                        <input type="number" id="capacity-input" value="4" min="2" max="32" placeholder="Max"
+                            style="flex: 0.5; background: rgba(0,0,0,0.3); border: 1px solid #555; color: white; padding: 8px; 
+                            font-family: 'Cinzel', serif; text-align: center;">
+                        
+                        <button class="btn" id="btn-join" style="flex: 1; margin: 0; padding: 0; font-size: 0.8rem; background: #333;">GO</button>
                     </div>
-                    
-                    <button class="btn" id="btn-join" style="flex: 1; margin: 0; background: rgba(255,255,255,0.1);">ENTER ROOM</button>
                 </div>
 
-                <div style="width: 100%; height: 1px; background: #333; margin: 5px 0;"></div>
-
-                <button class="btn" id="btn-random" style="width: 100%; margin: 0; font-size: 0.9rem; padding: 10px;">Find Random Public Game</button>
+                <!-- SERVER LIST SECTION -->
+                <div style="width: 100%;">
+                    <label style="display: block; color: #aaa; font-size: 0.8rem; margin-bottom: 10px; text-align: left;">BROWSE ACTIVE SERVERS</label>
+                    
+                    <div id="server-list-container" style="
+                        width: 100%; 
+                        height: 150px; 
+                        background: rgba(0,0,0,0.3); 
+                        border: 1px solid #333; 
+                        overflow-y: auto; 
+                        display: flex; 
+                        flex-direction: column; 
+                        gap: 2px;
+                        padding: 2px;
+                    ">
+                        <div style="color: #666; font-size: 0.8rem; padding: 10px; text-align: center;">Connecting to Lobby...</div>
+                    </div>
+                </div>
             </div>
 
             <button class="btn" id="btn-settings">Settings</button>
@@ -358,6 +401,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set, onValue, onDisconnect, remove, update, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
     // --- FIREBASE CONFIG ---
     const firebaseConfig = {
@@ -374,6 +418,7 @@
     const Network = {
         app: null,
         db: null,
+        auth: null,
         playerId: null,
         playerName: null,
         playerRef: null,
@@ -383,18 +428,68 @@
         lastUpdate: 0,
         currentRoom: null,
         
-        initApp: () => {
+        initApp: async () => {
              if (!Network.app) {
                 Network.app = initializeApp(firebaseConfig);
                 Network.db = getDatabase(Network.app);
+                Network.auth = getAuth(Network.app);
+                
                 Network.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
                 Network.playerName = "Vessel " + Math.floor(Math.random() * 1000);
+
+                // Authenticate Anonymously to fix "Permission Denied"
+                try {
+                    await signInAnonymously(Network.auth);
+                    console.log("Authenticated with Firebase");
+                    Network.startServerBrowser();
+                } catch (error) {
+                    console.error("Auth Error:", error);
+                    alert("Authentication Failed: " + error.message);
+                }
              }
+        },
+
+        startServerBrowser: () => {
+            const listRef = ref(Network.db, 'hk_multiplayer/rooms');
+            onValue(listRef, (snapshot) => {
+                const rooms = snapshot.val() || {};
+                const listEl = document.getElementById('server-list-container');
+                listEl.innerHTML = ''; // Clear
+
+                if (Object.keys(rooms).length === 0) {
+                    listEl.innerHTML = '<div style="color: #666; font-size: 0.8rem; padding: 10px;">No active servers found. Create one above!</div>';
+                    return;
+                }
+
+                Object.keys(rooms).forEach(roomCode => {
+                    const r = rooms[roomCode];
+                    const count = r.players ? Object.keys(r.players).length : 0;
+                    const max = r.settings ? r.settings.maxPlayers : 4;
+                    
+                    const el = document.createElement('div');
+                    el.className = 'server-item';
+                    el.innerHTML = `
+                        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                            <span style="color:white; font-weight:bold;">${roomCode}</span>
+                            <span style="color:#888; font-size:0.7rem;">Map: Default</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap: 10px;">
+                            <span style="color: ${count >= max ? '#d32f2f' : '#4caf50'}">${count}/${max}</span>
+                            <button class="btn-join-small">JOIN</button>
+                        </div>
+                    `;
+                    el.querySelector('.btn-join-small').addEventListener('click', () => {
+                         Network.attemptJoin(roomCode, max);
+                    });
+                    listEl.appendChild(el);
+                });
+            });
         },
 
         attemptJoin: async (roomCode, capacity) => {
             try {
-                Network.initApp();
+                if (!Network.auth.currentUser) await Network.initApp();
+
                 const db = Network.db;
                 const roomRef = ref(db, `hk_multiplayer/rooms/${roomCode}`);
                 
@@ -435,6 +530,11 @@
                 Network.roomRef = ref(Network.db, roomPath);
 
                 onDisconnect(Network.playerRef).remove();
+
+                // Remove player on window close manually for faster cleanup
+                window.addEventListener('beforeunload', () => {
+                     remove(Network.playerRef);
+                });
 
                 onValue(Network.roomRef, (snapshot) => {
                     const data = snapshot.val() || {};
@@ -478,17 +578,22 @@
     // Export Network to global window so Main Game can access it
     window.Network = Network;
 
+    // Initialize Auth Immediately
+    Network.initApp();
+
     // Start Game Hooks
     document.getElementById('btn-join').addEventListener('click', () => {
         const input = document.getElementById('room-code-input');
         const capInput = document.getElementById('capacity-input');
-        const code = input.value.trim().toUpperCase() || 'PUBLIC';
+        const code = input.value.trim().toUpperCase();
+        
+        if(!code) {
+            alert("Please enter a room code to create or join.");
+            return;
+        }
+
         const capacity = parseInt(capInput.value) || 4;
         Network.attemptJoin(code, capacity);
-    });
-
-    document.getElementById('btn-random').addEventListener('click', () => {
-        Network.attemptJoin('PUBLIC', 20); // Public room large capacity
     });
 
     document.getElementById('btn-resume').addEventListener('click', () => window.Game.resumeGame());
