@@ -372,6 +372,15 @@
             cursor: pointer;
         }
         .cust-arrow:hover { background: #333; }
+        
+        input[type="file"]::file-selector-button {
+            border: 1px solid #555;
+            background: #222;
+            color: white;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: 'Cinzel', serif;
+        }
     </style>
 </head>
 <body>
@@ -494,16 +503,39 @@
         <div id="customize-menu" class="menu-screen hidden">
             <h2 class="menu-title" style="font-size: 2rem;">Vessel Style</h2>
             
-            <div style="width: 300px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 8px; border: 1px solid #444;">
+            <div style="width: 320px; background: rgba(0,0,0,0.9); padding: 20px; border-radius: 8px; border: 1px solid #444; max-height: 80vh; overflow-y: auto;">
+                
+                <!-- Mask -->
                 <div class="custom-option">
-                    <span>Mask Style</span>
+                    <span>Mask</span>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <button class="cust-arrow" id="mask-prev"><</button>
-                        <span id="mask-display" style="width: 20px; text-align: center;">1</span>
+                        <span id="mask-display" style="width: 60px; text-align: center; font-size: 0.7rem;">DEFAULT</span>
                         <button class="cust-arrow" id="mask-next">></button>
                     </div>
                 </div>
 
+                <!-- Outfit -->
+                <div class="custom-option">
+                    <span>Outfit</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="cust-arrow" id="outfit-prev"><</button>
+                        <span id="outfit-display" style="width: 60px; text-align: center; font-size: 0.7rem;">CLOAK</span>
+                        <button class="cust-arrow" id="outfit-next">></button>
+                    </div>
+                </div>
+
+                <!-- Height -->
+                <div class="custom-option">
+                    <span>Height</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="cust-arrow" id="height-prev">-</button>
+                        <span id="height-display" style="width: 60px; text-align: center; font-size: 0.8rem;">100%</span>
+                        <button class="cust-arrow" id="height-next">+</button>
+                    </div>
+                </div>
+
+                <!-- Weapon -->
                 <div class="custom-option">
                     <span>Weapon</span>
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -513,8 +545,9 @@
                     </div>
                 </div>
 
+                <!-- Color -->
                 <div class="custom-option" style="flex-direction: column; align-items: flex-start;">
-                    <span style="margin-bottom: 10px;">Cloak Color</span>
+                    <span style="margin-bottom: 10px;">Color Theme</span>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <div class="color-swatch selected" data-color="#2c3e50" style="background: #2c3e50;"></div>
                         <div class="color-swatch" data-color="#c0392b" style="background: #c0392b;"></div>
@@ -522,11 +555,20 @@
                         <div class="color-swatch" data-color="#8e44ad" style="background: #8e44ad;"></div>
                         <div class="color-swatch" data-color="#d35400" style="background: #d35400;"></div>
                         <div class="color-swatch" data-color="#7f8c8d" style="background: #7f8c8d;"></div>
+                        <div class="color-swatch" data-color="#111111" style="background: #111111; border: 1px solid #555;"></div>
+                        <div class="color-swatch" data-color="#f1c40f" style="background: #f1c40f;"></div>
                     </div>
                 </div>
+                
+                <!-- Background -->
+                <div class="custom-option" style="flex-direction: column; align-items: flex-start;">
+                    <span style="margin-bottom: 5px;">Custom Background</span>
+                    <input type="file" id="bg-upload" accept="image/*" style="width: 100%; font-size: 0.7rem;">
+                    <div style="font-size: 0.6rem; color: #666; margin-top: 2px;">Visible only to you.</div>
+                </div>
 
-                <div style="height: 100px; border: 1px solid #333; background: #0f0f16; display: flex; justify-content: center; align-items: center; margin-top: 20px;">
-                    <canvas id="preview-canvas" width="100" height="100"></canvas>
+                <div style="height: 120px; border: 1px solid #333; background: #0f0f16; display: flex; justify-content: center; align-items: center; margin-top: 20px;">
+                    <canvas id="preview-canvas" width="120" height="120"></canvas>
                 </div>
             </div>
 
@@ -760,6 +802,8 @@
                     cc: playerData.cloakColor, 
                     ms: playerData.maskStyle,
                     sw: playerData.swordStyle,
+                    os: playerData.outfitStyle,
+                    hs: playerData.heightScale,
                     sc: playerData.score,
                     ts: now,
                     msg: playerData.chatMessage,
@@ -1050,8 +1094,10 @@ class Player extends Entity {
 
         // Customization
         this.cloakColor = '#2c3e50';
-        this.maskStyle = 0; // 0: Default, 1: Curved, 2: Pointy
-        this.swordStyle = 0; // 0: Nail, 1: Needle, 2: Greatsword
+        this.maskStyle = 0; 
+        this.swordStyle = 0; 
+        this.outfitStyle = 0; // 0: Cloak, 1: Armor, 2: Robe
+        this.heightScale = 1.0;
         this.score = 0;
     }
 
@@ -1221,12 +1267,16 @@ class Player extends Entity {
             this.attackTimer = ATTACK_DURATION;
             this.attackCooldown = (this.swordStyle === 1) ? 15 : (this.swordStyle === 2 ? 45 : 25); // Needle faster, Greatsword slower
             
-            const reach = (this.swordStyle === 2) ? 60 : 40; // Greatsword more reach
-            const dmg = (this.swordStyle === 2) ? 2 : 1;
+            let reach = 40;
+            let dmg = 1;
+            let hitH = 20;
+
+            if (this.swordStyle === 2) { reach = 60; dmg = 2; hitH = 40; } // Greatsword
+            if (this.swordStyle === 3) { reach = 50; dmg = 1; hitH = 30; } // Scythe
+            if (this.swordStyle === 4) { reach = 100; dmg = 1; hitH = 10; } // Blaster (Long range melee)
             
             const hitX = this.facing === 1 ? this.x + this.w : this.x - reach;
             const hitY = this.y + 10;
-            const hitH = (this.swordStyle === 2) ? 40 : 20;
 
             // Enemies
             enemies.forEach(e => {
@@ -1322,14 +1372,19 @@ class Player extends Entity {
     draw(ctx, camX, camY) {
         if (this.invulnerable > 0 && Math.floor(Date.now() / 50) % 2 === 0) return; 
         
-        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null, this.cloakColor, this.maskStyle, this.swordStyle);
+        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null, this.cloakColor, this.maskStyle, this.swordStyle, this.outfitStyle, this.heightScale);
     }
 }
 
 // Draw Vessel Function (Handles Skins and Chat)
-function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg, cloakColor, maskStyle, swordStyle) {
+function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg, cloakColor, maskStyle, swordStyle, outfitStyle, heightScale) {
+    const scale = heightScale || 1.0;
+    const finalH = h * scale;
     const cx = x + w/2;
-    const cy = y + h; 
+    const cy = y + h; // Pivot bottom
+    
+    // Y Correction due to height scaling pivoting from center in scale, we want pivot at bottom
+    // We handle this by translating to bottom, scaling, then drawing up.
 
     ctx.save();
     
@@ -1340,7 +1395,7 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
         const bw = Math.max(metrics.width + 10, 20);
         const bh = 24;
         const bx = cx - bw/2;
-        const by = y - bh - 10;
+        const by = y - (finalH - h) - bh - 10; // Adjust for height
         
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.beginPath();
@@ -1360,16 +1415,46 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
     }
 
     ctx.translate(cx, cy);
-    ctx.scale(facing * scaleX, scaleY);
+    ctx.scale(facing * scaleX * scale, scaleY * scale);
     ctx.translate(-cx, -cy);
 
-    // Cloak
+    // Outfit
     ctx.fillStyle = cloakColor || COLORS.cloak;
     ctx.beginPath();
-    ctx.moveTo(cx, y + 15);
-    ctx.lineTo(cx - 12, y + h);
-    ctx.lineTo(cx + 12, y + h);
+    const os = outfitStyle || 0;
+    
+    if (os === 0) { // Cloak
+        ctx.moveTo(cx, y + 15);
+        ctx.lineTo(cx - 12, y + h);
+        ctx.lineTo(cx + 12, y + h);
+    } else if (os === 1) { // Armor
+        ctx.moveTo(cx - 10, y + 15);
+        ctx.lineTo(cx - 10, y + h - 5);
+        ctx.lineTo(cx, y + h);
+        ctx.lineTo(cx + 10, y + h - 5);
+        ctx.lineTo(cx + 10, y + 15);
+        // Shoulder pads
+        ctx.moveTo(cx - 14, y + 15);
+        ctx.lineTo(cx - 6, y + 15);
+        ctx.lineTo(cx - 10, y + 22);
+        ctx.moveTo(cx + 14, y + 15);
+        ctx.lineTo(cx + 6, y + 15);
+        ctx.lineTo(cx + 10, y + 22);
+    } else if (os === 2) { // Robe
+        ctx.moveTo(cx, y + 10);
+        ctx.lineTo(cx - 15, y + h);
+        ctx.lineTo(cx + 15, y + h);
+    }
     ctx.fill();
+    
+    // Armor Detail
+    if (os === 1) {
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.rect(cx - 4, y + 25, 8, 10);
+        ctx.stroke();
+    }
 
     // Head
     ctx.fillStyle = isRemote ? COLORS.otherPlayer : COLORS.player;
@@ -1377,6 +1462,10 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
     
     const mStyle = maskStyle || 0;
     
+    // Base Face
+    ctx.ellipse(cx, y + 10, 11, 12, 0, 0, Math.PI * 2);
+
+    // Horns / Top
     if (mStyle == 0) { // Default
         ctx.moveTo(cx - 8, y);
         ctx.lineTo(cx - 8, y - 12);
@@ -1384,7 +1473,7 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
         ctx.moveTo(cx + 8, y);
         ctx.lineTo(cx + 8, y - 12);
         ctx.lineTo(cx + 4, y);
-    } else if (mStyle == 1) { // Curved
+    } else if (mStyle == 1) { // Horns (Curved)
         ctx.moveTo(cx - 8, y);
         ctx.quadraticCurveTo(cx - 12, y - 10, cx - 4, y);
         ctx.moveTo(cx + 8, y);
@@ -1396,24 +1485,39 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
         ctx.moveTo(cx + 8, y);
         ctx.lineTo(cx + 10, y - 15);
         ctx.lineTo(cx + 4, y);
+    } else if (mStyle == 3) { // Helmet
+        ctx.moveTo(cx - 10, y + 5);
+        ctx.lineTo(cx - 10, y - 10);
+        ctx.quadraticCurveTo(cx, y - 15, cx + 10, y - 10);
+        ctx.lineTo(cx + 10, y + 5);
+    } else if (mStyle == 4) { // Crown
+        ctx.moveTo(cx - 8, y - 2);
+        ctx.lineTo(cx - 10, y - 15);
+        ctx.lineTo(cx - 4, y - 5);
+        ctx.lineTo(cx, y - 15);
+        ctx.lineTo(cx + 4, y - 5);
+        ctx.lineTo(cx + 10, y - 15);
+        ctx.lineTo(cx + 8, y - 2);
     }
 
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(cx, y + 10, 11, 12, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Eyes
     ctx.fillStyle = 'black';
     ctx.beginPath();
-    ctx.ellipse(cx - 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
+    if (mStyle == 3) { // Helmet Slit
+        ctx.rect(cx - 6, y + 8, 12, 4);
+    } else {
+        ctx.ellipse(cx - 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx + 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
+    }
     ctx.fill();
 
     if (attacking) {
-        ctx.strokeStyle = 'white';
-        
         const sw = swordStyle || 0;
+        
+        ctx.strokeStyle = 'white';
+        ctx.fillStyle = 'white';
         
         if (sw === 0) { // Nail
             ctx.lineWidth = 3;
@@ -1423,7 +1527,7 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
             ctx.globalAlpha = 0.5;
             ctx.lineWidth = 10;
             ctx.stroke();
-        } else if (sw === 1) { // Needle (Stab)
+        } else if (sw === 1) { // Needle
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(cx + 5, y + 20);
@@ -1432,13 +1536,31 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
             ctx.globalAlpha = 0.5;
             ctx.lineWidth = 6;
             ctx.stroke();
-        } else if (sw === 2) { // Greatsword (Big Swing)
+        } else if (sw === 2) { // Greatsword
             ctx.lineWidth = 5;
             ctx.beginPath();
             ctx.arc(cx + 10, y + 20, 45, -Math.PI/2, Math.PI/2);
             ctx.stroke();
             ctx.globalAlpha = 0.5;
             ctx.lineWidth = 15;
+            ctx.stroke();
+        } else if (sw === 3) { // Scythe
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(cx + 10, y + 30);
+            ctx.quadraticCurveTo(cx + 40, y + 10, cx + 10, y - 20);
+            ctx.stroke();
+            ctx.globalAlpha = 0.5;
+            ctx.lineWidth = 8;
+            ctx.stroke();
+        } else if (sw === 4) { // Blaster
+            ctx.beginPath();
+            ctx.arc(cx + 25, y + 15, 10, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(cx + 25, y + 15);
+            ctx.lineTo(cx + 50, y + 15);
+            ctx.lineWidth = 4;
             ctx.stroke();
         }
         
@@ -1564,29 +1686,74 @@ const Game = {
                 Game.previewCustomization();
             });
         });
-
+        
+        // Mask Names
+        const maskNames = ["DEFAULT", "HORNS", "POINTY", "HELMET", "CROWN"];
+        Game.player.maskStyle = 0;
         document.getElementById('mask-next').addEventListener('click', () => {
-            Game.player.maskStyle = (Game.player.maskStyle + 1) % 3;
-            document.getElementById('mask-display').innerText = Game.player.maskStyle + 1;
+            Game.player.maskStyle = (Game.player.maskStyle + 1) % maskNames.length;
+            document.getElementById('mask-display').innerText = maskNames[Game.player.maskStyle];
             Game.previewCustomization();
         });
         document.getElementById('mask-prev').addEventListener('click', () => {
-            Game.player.maskStyle = (Game.player.maskStyle - 1 + 3) % 3;
-            document.getElementById('mask-display').innerText = Game.player.maskStyle + 1;
+            Game.player.maskStyle = (Game.player.maskStyle - 1 + maskNames.length) % maskNames.length;
+            document.getElementById('mask-display').innerText = maskNames[Game.player.maskStyle];
+            Game.previewCustomization();
+        });
+
+        // Outfit Names
+        const outfitNames = ["CLOAK", "ARMOR", "ROBE"];
+        document.getElementById('outfit-next').addEventListener('click', () => {
+            Game.player.outfitStyle = (Game.player.outfitStyle + 1) % 3;
+            document.getElementById('outfit-display').innerText = outfitNames[Game.player.outfitStyle];
+            Game.previewCustomization();
+        });
+        document.getElementById('outfit-prev').addEventListener('click', () => {
+            Game.player.outfitStyle = (Game.player.outfitStyle - 1 + 3) % 3;
+            document.getElementById('outfit-display').innerText = outfitNames[Game.player.outfitStyle];
+            Game.previewCustomization();
+        });
+
+        // Height
+        document.getElementById('height-next').addEventListener('click', () => {
+            if (Game.player.heightScale < 1.3) Game.player.heightScale += 0.05;
+            document.getElementById('height-display').innerText = Math.round(Game.player.heightScale * 100) + "%";
+            Game.previewCustomization();
+        });
+        document.getElementById('height-prev').addEventListener('click', () => {
+            if (Game.player.heightScale > 0.7) Game.player.heightScale -= 0.05;
+            document.getElementById('height-display').innerText = Math.round(Game.player.heightScale * 100) + "%";
             Game.previewCustomization();
         });
         
         // Sword Customization
-        const swordNames = ["NAIL", "NEEDLE", "GREATSWORD"];
+        const swordNames = ["NAIL", "NEEDLE", "GREATSWORD", "SCYTHE", "BLASTER"];
         document.getElementById('sword-next').addEventListener('click', () => {
-            Game.player.swordStyle = (Game.player.swordStyle + 1) % 3;
+            Game.player.swordStyle = (Game.player.swordStyle + 1) % swordNames.length;
             document.getElementById('sword-display').innerText = swordNames[Game.player.swordStyle];
             Game.previewCustomization();
         });
         document.getElementById('sword-prev').addEventListener('click', () => {
-            Game.player.swordStyle = (Game.player.swordStyle - 1 + 3) % 3;
+            Game.player.swordStyle = (Game.player.swordStyle - 1 + swordNames.length) % swordNames.length;
             document.getElementById('sword-display').innerText = swordNames[Game.player.swordStyle];
             Game.previewCustomization();
+        });
+
+        // Background Upload
+        document.getElementById('bg-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        Game.customBg = img;
+                        console.log("Custom BG Loaded");
+                    };
+                    img.src = evt.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
         });
 
         // Chat Button
@@ -1601,9 +1768,19 @@ const Game = {
     previewCustomization: () => {
         const c = document.getElementById('preview-canvas');
         const ctx = c.getContext('2d');
-        ctx.clearRect(0,0,100,100);
-        // Draw vessel at center
-        drawVessel(ctx, 38, 30, 24, 40, 1, 1, 1, true, false, false, null, Game.player.cloakColor, Game.player.maskStyle, Game.player.swordStyle);
+        ctx.clearRect(0,0,120,120);
+        
+        // Adjust preview centering based on height
+        const h = 40 * Game.player.heightScale;
+        const y = 60 + (20 - h/2); 
+        
+        drawVessel(ctx, 60 - 12, y, 24, 40, 1, 1, 1, true, false, false, null, 
+            Game.player.cloakColor, 
+            Game.player.maskStyle, 
+            Game.player.swordStyle,
+            Game.player.outfitStyle,
+            Game.player.heightScale
+        );
     },
 
     startGame: () => {
@@ -1678,6 +1855,12 @@ const Game = {
     },
 
     drawBackground: (ctx, cx, cy) => {
+        if (Game.customBg) {
+            // Draw Custom Image Cover
+            ctx.drawImage(Game.customBg, 0, 0, Game.canvas.width, Game.canvas.height);
+            return;
+        }
+
         // Simple Parallax
         const bgY = cy * 0.2;
         const bgX = cx * 0.2;
@@ -1778,9 +1961,12 @@ const Game = {
                 // PvP Melee (Incoming Attack)
                 if (window.Network.pvpEnabled && p.a) {
                     const swordS = p.sw || 0;
-                    const reach = (swordS === 2) ? 60 : 40;
-                    const hitH = (swordS === 2) ? 40 : 20;
-                    
+                    let reach = 40;
+                    let hitH = 20;
+                    if (swordS === 2) { reach = 60; hitH = 40; }
+                    if (swordS === 3) { reach = 50; hitH = 30; }
+                    if (swordS === 4) { reach = 100; hitH = 10; }
+
                     const hitX = (p.f || 1) === 1 ? p.x + 24 : p.x - reach;
                     const hitY = p.y + 10;
                     
@@ -1817,7 +2003,7 @@ const Game = {
                 window.Network.remoteStates[key] = p;
 
                 const msg = (p.mt && p.mt > 0) ? p.msg : null;
-                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg, p.cc, p.ms, p.sw);
+                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg, p.cc, p.ms, p.sw, p.os, p.hs);
 
                 ctx.fillStyle = window.Network.pvpEnabled ? '#ffaaaa' : '#aaa';
                 ctx.font = '10px Cinzel';
