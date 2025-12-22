@@ -302,6 +302,32 @@
             background: #fff;
             color: #000;
         }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #444;
+            border-radius: 2px;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
     </style>
 </head>
 <body>
@@ -377,6 +403,37 @@
             </div>
         </div>
 
+        <!-- NEW SETTINGS MENU -->
+        <div id="settings-menu" class="menu-screen hidden">
+            <h2 class="menu-title" style="font-size: 2rem;">Settings</h2>
+            
+            <div style="width: 300px; display: flex; flex-direction: column; gap: 20px; background: rgba(0,0,0,0.6); padding: 30px; border-radius: 8px; border: 1px solid #444;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <label>Master Volume</label>
+                        <span id="val-master" style="color: #aaa;">50%</span>
+                    </div>
+                    <input type="range" id="vol-master" min="0" max="100" value="50" style="width: 100%;">
+                </div>
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <label>Music Volume</label>
+                        <span id="val-music" style="color: #aaa;">30%</span>
+                    </div>
+                    <input type="range" id="vol-music" min="0" max="100" value="30" style="width: 100%;">
+                </div>
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <label>SFX Volume</label>
+                        <span id="val-sfx" style="color: #aaa;">50%</span>
+                    </div>
+                    <input type="range" id="vol-sfx" min="0" max="100" value="50" style="width: 100%;">
+                </div>
+            </div>
+
+            <button class="btn" id="btn-settings-back" style="margin-top: 30px;">Back</button>
+        </div>
+
         <div id="pause-menu" class="menu-screen hidden">
             <h2 class="menu-title" style="font-size: 2rem;">Paused</h2>
             <button class="btn" id="btn-resume">Resume</button>
@@ -428,7 +485,6 @@
                 Network.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
                 Network.playerName = "Vessel " + Math.floor(Math.random() * 1000);
 
-                // Authenticate Anonymously to fix "Permission Denied"
                 try {
                     await signInAnonymously(Network.auth);
                     console.log("Authenticated with Firebase");
@@ -484,7 +540,6 @@
                 const db = Network.db;
                 const roomRef = ref(db, `hk_multiplayer/rooms/${roomCode}`);
                 
-                // Check Room Data
                 const snapshot = await get(roomRef);
                 const val = snapshot.val() || {};
                 const players = val.players || {};
@@ -492,13 +547,11 @@
                 
                 let maxPlayers = settings.maxPlayers;
                 
-                // Create room settings if new
                 if (!maxPlayers) {
                     maxPlayers = parseInt(capacity) || 4;
                     await set(child(roomRef, 'settings/maxPlayers'), maxPlayers);
                 }
                 
-                // Check Capacity
                 const currentCount = Object.keys(players).length;
                 if (currentCount >= maxPlayers) {
                     alert(`Room ${roomCode} is full! (${currentCount}/${maxPlayers})`);
@@ -522,7 +575,6 @@
 
                 onDisconnect(Network.playerRef).remove();
 
-                // Remove player on window close manually for faster cleanup
                 window.addEventListener('beforeunload', () => {
                       remove(Network.playerRef);
                 });
@@ -556,7 +608,7 @@
                     x: Math.round(playerData.x),
                     y: Math.round(playerData.y),
                     f: playerData.facing, 
-                    s: playerData.animState, 
+                    a: playerData.attacking, // Send attack state
                     hp: playerData.health,
                     n: Network.playerName,
                     ts: now
@@ -566,13 +618,10 @@
         }
     };
 
-    // Export Network to global window so Main Game can access it
     window.Network = Network;
 
-    // Initialize Auth Immediately
     Network.initApp();
 
-    // Start Game Hooks
     document.getElementById('btn-join').addEventListener('click', () => {
         const input = document.getElementById('room-code-input');
         const capInput = document.getElementById('capacity-input');
@@ -587,10 +636,43 @@
         Network.attemptJoin(code, capacity);
     });
 
+    // Settings & Menus
     document.getElementById('btn-resume').addEventListener('click', () => window.Game.resumeGame());
     document.getElementById('btn-save').addEventListener('click', () => window.Game.saveGame());
     document.getElementById('btn-quit').addEventListener('click', () => location.reload());
-    document.getElementById('btn-settings').addEventListener('click', () => alert("Audio: On\nMusic: On\nMultiplayer: Active"));
+    
+    // Open Settings
+    document.getElementById('btn-settings').addEventListener('click', () => {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('settings-menu').classList.remove('hidden');
+    });
+
+    // Back from Settings
+    document.getElementById('btn-settings-back').addEventListener('click', () => {
+        document.getElementById('settings-menu').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+    });
+
+    // Volume Sliders
+    const updateVolLabel = (id, val) => document.getElementById(id).innerText = Math.round(val * 100) + '%';
+    
+    document.getElementById('vol-master').addEventListener('input', (e) => {
+        const val = e.target.value / 100;
+        window.SoundManager.setMaster(val);
+        updateVolLabel('val-master', val);
+    });
+
+    document.getElementById('vol-music').addEventListener('input', (e) => {
+        const val = e.target.value / 100;
+        window.SoundManager.setMusic(val);
+        updateVolLabel('val-music', val);
+    });
+
+    document.getElementById('vol-sfx').addEventListener('input', (e) => {
+        const val = e.target.value / 100;
+        window.SoundManager.setSfx(val);
+        updateVolLabel('val-sfx', val);
+    });
 
 </script>
 
@@ -599,7 +681,6 @@
  * HOLLOW KNIGHT CLONE - MAIN ENGINE
  */
 
-// --- CONSTANTS & CONFIG ---
 const GRAVITY = 0.6;
 const TERMINAL_VELOCITY = 15;
 const FRICTION = 0.8;
@@ -615,7 +696,7 @@ const COLORS = {
     platform: '#1a1a2e',
     platformBorder: '#3d3d5c',
     player: '#f0f0f0',
-    otherPlayer: 'rgba(200, 200, 255, 0.4)',
+    otherPlayer: '#d0d0f0', // Slight tint for others
     cloak: '#2c3e50',
     enemy: '#d35400',
     boss: '#c0392b',
@@ -623,10 +704,9 @@ const COLORS = {
     hazard: '#7f8c8d'
 };
 
-// --- AUDIO SYSTEM (Web Audio API) ---
+// --- AUDIO SYSTEM ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-// FX Bus (Delay/Reverb Simulation)
 const masterGain = audioCtx.createGain();
 masterGain.connect(audioCtx.destination);
 
@@ -646,8 +726,14 @@ delayNode.connect(audioCtx.destination);
 
 const SoundManager = {
     masterVol: 0.5,
+    musicVol: 0.3, // Lower default music volume
+    sfxVol: 0.5,
+
+    setMaster: (v) => SoundManager.masterVol = v,
+    setMusic: (v) => SoundManager.musicVol = v,
+    setSfx: (v) => SoundManager.sfxVol = v,
     
-    playTone: (freq, type, duration, vol = 0.1, slide = 0) => {
+    playTone: (freq, type, duration, vol = 0.1, slide = 0, isMusic = false) => {
         if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -657,34 +743,36 @@ const SoundManager = {
             osc.frequency.exponentialRampToValueAtTime(freq + slide, audioCtx.currentTime + duration);
         }
         
-        gain.gain.setValueAtTime(vol * SoundManager.masterVol, audioCtx.currentTime);
+        // Calculate volume based on category
+        const catVol = isMusic ? SoundManager.musicVol : SoundManager.sfxVol;
+        const finalVol = vol * SoundManager.masterVol * catVol;
+
+        gain.gain.setValueAtTime(finalVol, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
         
-        osc.connect(masterGain); // Connect to Master/FX Bus
+        osc.connect(masterGain); 
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
     },
     
     playMusic: () => {
         if (window.musicInterval) return;
-        
-        // Atmospheric Scale (D Minor Pentatonicish)
         const notes = [146.83, 174.61, 220.00, 261.63, 293.66, 349.23, 392.00]; 
         let tick = 0;
 
         window.musicInterval = setInterval(() => {
             if (audioCtx.state === 'suspended') return;
             
-            // Deep Drone (Bass)
+            // Bass
             if (tick % 8 === 0) {
-                SoundManager.playTone(73.42, 'sine', 6.0, 0.08); 
-                SoundManager.playTone(110.00, 'triangle', 6.0, 0.03); 
+                SoundManager.playTone(73.42, 'sine', 6.0, 0.08, 0, true); 
+                SoundManager.playTone(110.00, 'triangle', 6.0, 0.03, 0, true); 
             }
             
-            // Random Melodic Droplets
+            // Melody
             if (Math.random() > 0.4) {
                 const freq = notes[Math.floor(Math.random() * notes.length)];
-                SoundManager.playTone(freq, 'sine', 2.5, 0.03);
+                SoundManager.playTone(freq, 'sine', 2.5, 0.03, 0, true);
             }
             
             tick++;
@@ -698,18 +786,15 @@ const SoundManager = {
     playHeal: () => SoundManager.playTone(400, 'sine', 1.0, 0.1, 50),
     playStep: () => SoundManager.playTone(100, 'triangle', 0.05, 0.02, -50)
 };
+window.SoundManager = SoundManager;
 
 // --- INPUT HANDLING ---
 const Input = {
     keys: {},
     mouse: { x: 0, y: 0, left: false, right: false },
     init: () => {
-        window.addEventListener('keydown', e => {
-            // Map WASD to Arrow logic for internal engine consistency if needed, or just use codes
-            Input.keys[e.code] = true;
-        });
+        window.addEventListener('keydown', e => Input.keys[e.code] = true);
         window.addEventListener('keyup', e => Input.keys[e.code] = false);
-        
         window.addEventListener('mousedown', e => {
             if (e.button === 0) Input.mouse.left = true;
             if (e.button === 2) Input.mouse.right = true;
@@ -718,11 +803,8 @@ const Input = {
             if (e.button === 0) Input.mouse.left = false;
             if (e.button === 2) Input.mouse.right = false;
         });
-        window.addEventListener('contextmenu', e => e.preventDefault()); // Block context menu
-        
-        // Touch controls logic remains for mobile
+        window.addEventListener('contextmenu', e => e.preventDefault());
     },
-    // Helper to abstract key bindings
     left: () => Input.keys['KeyA'] || Input.keys['ArrowLeft'],
     right: () => Input.keys['KeyD'] || Input.keys['ArrowRight'],
     up: () => Input.keys['KeyW'] || Input.keys['ArrowUp'],
@@ -730,7 +812,7 @@ const Input = {
     jump: () => Input.keys['Space'] || Input.keys['KeyZ'],
     dash: () => Input.keys['ShiftLeft'] || Input.keys['KeyC'],
     attack: () => Input.mouse.left || Input.keys['KeyX'],
-    heal: () => Input.mouse.right || Input.keys['KeyF'], // F as backup
+    heal: () => Input.mouse.right || Input.keys['KeyF'], 
     pause: () => Input.keys['Escape']
 };
 
@@ -801,7 +883,7 @@ class Player extends Entity {
         this.recoil = 0;
         
         // Animation
-        this.animState = 0; // 0: Idle, 1: Run, 2: Jump, 3: Attack
+        this.animState = 0; 
         this.animTimer = 0;
         this.stretch = {x: 1, y: 1};
     }
@@ -846,11 +928,9 @@ class Player extends Entity {
         if (this.dead) return;
         this.animTimer++;
         
-        // Animation Stretch Reset
         this.stretch.x += (1 - this.stretch.x) * 0.1;
         this.stretch.y += (1 - this.stretch.y) * 0.1;
 
-        // Healing
         if (Input.heal() && this.grounded && this.soul >= 33 && this.health < this.maxHealth) {
             this.healing = true;
             this.vx *= 0.8;
@@ -876,7 +956,6 @@ class Player extends Entity {
         if (this.recoil > 0) {
             this.recoil--;
         } else if (!this.healing) {
-            // Movement
             if (Input.left()) { 
                 this.vx -= 1; 
                 this.facing = -1; 
@@ -890,14 +969,12 @@ class Player extends Entity {
                 this.animState = 0;
             }
             
-            // Friction/Limit
             this.vx *= FRICTION;
             if (Math.abs(this.vx) < 0.1) this.vx = 0;
             if (this.vx > MOVE_SPEED) this.vx = MOVE_SPEED;
             if (this.vx < -MOVE_SPEED) this.vx = -MOVE_SPEED;
         }
 
-        // Jump
         if (Input.jump() && !this.lastJumpKey) {
             if (this.grounded) {
                 this.vy = -JUMP_FORCE;
@@ -907,40 +984,35 @@ class Player extends Entity {
                 this.lastJumpKey = true;
                 this.animState = 2;
                 
-                // Particles
                 for(let i=0; i<5; i++) {
                     Game.particles.push(new Particle(this.x + this.w/2, this.y + this.h, 'white', (Math.random()-0.5)*4, Math.random()*-2, 20));
                 }
             }
         } else if (!Input.jump()) {
             this.lastJumpKey = false;
-            if (this.vy < -3) this.vy *= 0.5; // Variable jump height
+            if (this.vy < -3) this.vy *= 0.5;
         }
 
-        // Dash
         if (Input.dash() && !this.dashing && this.dashCooldown <= 0 && !this.healing) {
             this.dashing = true;
             this.dashTimer = DASH_DURATION;
-            this.dashCooldown = 40; // Cooldown
+            this.dashCooldown = 40; 
             this.vx = this.facing * DASH_SPEED;
             this.vy = 0;
             SoundManager.playDash();
             Game.camera.shake = 5;
         }
 
-        // Attack
         if (Input.attack() && !this.attacking && this.attackCooldown <= 0 && !this.healing) {
             this.attacking = true;
             this.attackTimer = ATTACK_DURATION;
             this.attackCooldown = 25;
             SoundManager.playAttack();
             
-            // Attack Hitbox logic
             const reach = 40;
             const hitX = this.facing === 1 ? this.x + this.w : this.x - reach;
             const hitY = this.y + 10;
             
-            // Check enemy hits
             enemies.forEach(e => {
                 if (!e.dead && hitX < e.x + e.w && hitX + reach > e.x && hitY < e.y + e.h && hitY + 20 > e.y) {
                     e.takeDamage(1);
@@ -951,7 +1023,6 @@ class Player extends Entity {
             });
         }
 
-        // Physics Update
         if (this.dashing) {
             this.dashTimer--;
             this.vy = 0;
@@ -959,7 +1030,6 @@ class Player extends Entity {
                 this.dashing = false;
                 this.vx *= 0.2;
             }
-            // Dash trail
             if (this.dashTimer % 3 === 0) {
                 Game.particles.push(new Particle(this.x, this.y, 'rgba(255,255,255,0.5)', 0, 0, 10));
             }
@@ -968,21 +1038,18 @@ class Player extends Entity {
             if (this.vy > TERMINAL_VELOCITY) this.vy = TERMINAL_VELOCITY;
         }
 
-        // Cooldowns
         if (this.dashCooldown > 0) this.dashCooldown--;
         if (this.attackCooldown > 0) this.attackCooldown--;
         if (this.invulnerable > 0) this.invulnerable--;
         if (this.attacking) this.attackTimer--;
         if (this.attackTimer <= 0) this.attacking = false;
 
-        // Apply Velocity
         this.x += this.vx;
         this.checkCollisions(map, 'x');
         this.y += this.vy;
         this.checkCollisions(map, 'y');
         
-        // Bounds
-        if (this.y > 2000) this.takeDamage(1, this.x + 100); // Void damage
+        if (this.y > 2000) this.takeDamage(1, this.x + 100);
     }
 
     checkCollisions(map, axis) {
@@ -998,11 +1065,11 @@ class Player extends Entity {
                     else if (this.vx < 0) this.x = rect.x + rect.w;
                     this.vx = 0;
                 } else {
-                    if (this.vy > 0) { // Landing
+                    if (this.vy > 0) { 
                         this.y = rect.y - this.h;
                         this.grounded = true;
                         this.vy = 0;
-                    } else if (this.vy < 0) { // Hitting head
+                    } else if (this.vy < 0) { 
                         this.y = rect.y + rect.h;
                         this.vy = 0;
                     }
@@ -1010,10 +1077,9 @@ class Player extends Entity {
             }
         }
         
-        // Ground check helper for edges
         if (axis === 'y' && !this.grounded && this.vy >= 0) {
              for (const rect of map) {
-                if (this.x < rect.x + rect.w - 2 && this.x + this.w > rect.x + 2 && // Inner width check
+                if (this.x < rect.x + rect.w - 2 && this.x + this.w > rect.x + 2 && 
                     Math.abs((this.y + this.h) - rect.y) < 2) {
                     this.grounded = true;
                     this.y = rect.y - this.h;
@@ -1024,79 +1090,78 @@ class Player extends Entity {
     }
 
     draw(ctx, camX, camY) {
-        if (this.invulnerable > 0 && Math.floor(Date.now() / 50) % 2 === 0) return; // Flicker
-
-        const x = this.x - camX;
-        const y = this.y - camY;
-        const w = this.w;
-        const h = this.h;
+        if (this.invulnerable > 0 && Math.floor(Date.now() / 50) % 2 === 0) return; 
         
-        const cx = x + w/2;
-        const cy = y + h; // Pivot at bottom
-
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.scale(this.facing * this.stretch.x, this.stretch.y);
-        ctx.translate(-cx, -cy);
-
-        // Cloak
-        ctx.fillStyle = COLORS.cloak;
-        // Simple pixel art approximation with rects
-        ctx.beginPath();
-        ctx.moveTo(cx, y + 15);
-        ctx.lineTo(cx - 12, y + h);
-        ctx.lineTo(cx + 12, y + h);
-        ctx.fill();
-
-        // Head
-        ctx.fillStyle = COLORS.player;
-        ctx.beginPath();
-        // Horns
-        ctx.moveTo(cx - 8, y);
-        ctx.lineTo(cx - 8, y - 12);
-        ctx.lineTo(cx - 4, y);
-        
-        ctx.moveTo(cx + 8, y);
-        ctx.lineTo(cx + 8, y - 12);
-        ctx.lineTo(cx + 4, y);
-        ctx.fill();
-        
-        // Face
-        ctx.beginPath();
-        ctx.ellipse(cx, y + 10, 11, 12, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Eyes
-        ctx.fillStyle = 'black';
-        ctx.beginPath();
-        ctx.ellipse(cx - 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
-        ctx.ellipse(cx + 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Attack Swing
-        if (this.attacking) {
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(cx + 10, y + 20, 30, -Math.PI/2, Math.PI/2);
-            ctx.stroke();
-            ctx.globalAlpha = 0.5;
-            ctx.lineWidth = 10;
-            ctx.stroke();
-            ctx.globalAlpha = 1.0;
-        }
-
-        // Healing Effects
-        if (this.healing) {
-            ctx.fillStyle = 'white';
-            ctx.globalAlpha = 0.6;
-            ctx.beginPath();
-            ctx.arc(cx, y + h/2, 25 + Math.random()*5, 0, Math.PI*2);
-            ctx.fill();
-        }
-
-        ctx.restore();
+        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false);
     }
+}
+
+// Helper to draw any vessel (local or remote)
+function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote) {
+    const cx = x + w/2;
+    const cy = y + h; 
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(facing * scaleX, scaleY);
+    ctx.translate(-cx, -cy);
+
+    // Cloak
+    ctx.fillStyle = COLORS.cloak;
+    ctx.beginPath();
+    ctx.moveTo(cx, y + 15);
+    ctx.lineTo(cx - 12, y + h);
+    ctx.lineTo(cx + 12, y + h);
+    ctx.fill();
+
+    // Head
+    ctx.fillStyle = isRemote ? COLORS.otherPlayer : COLORS.player;
+    ctx.beginPath();
+    // Horns
+    ctx.moveTo(cx - 8, y);
+    ctx.lineTo(cx - 8, y - 12);
+    ctx.lineTo(cx - 4, y);
+    
+    ctx.moveTo(cx + 8, y);
+    ctx.lineTo(cx + 8, y - 12);
+    ctx.lineTo(cx + 4, y);
+    ctx.fill();
+    
+    // Face
+    ctx.beginPath();
+    ctx.ellipse(cx, y + 10, 11, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.ellipse(cx - 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Attack Swing
+    if (attacking) {
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx + 10, y + 20, 30, -Math.PI/2, Math.PI/2);
+        ctx.stroke();
+        ctx.globalAlpha = 0.5;
+        ctx.lineWidth = 10;
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+    }
+
+    // Healing Effects
+    if (healing) {
+        ctx.fillStyle = 'white';
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.arc(cx, y + h/2, 25 + Math.random()*5, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    ctx.restore();
 }
 
 class Enemy extends Entity {
@@ -1116,7 +1181,6 @@ class Enemy extends Entity {
         if (this.dead) return;
         this.x += this.speed * this.dir;
         
-        // Turn around at edges or walls (simple AI)
         let hitWall = false;
         let aboutToFall = true;
         
@@ -1125,7 +1189,6 @@ class Enemy extends Entity {
                 this.y < rect.y + rect.h && this.y + this.h > rect.y) {
                 hitWall = true;
             }
-            // Check floor ahead
             const checkX = this.dir === 1 ? this.x + this.w : this.x;
             if (checkX >= rect.x && checkX <= rect.x + rect.w && 
                 this.y + this.h === rect.y) {
@@ -1138,7 +1201,6 @@ class Enemy extends Entity {
             this.x += this.speed * this.dir * 2;
         }
 
-        // Hit Player
         if (this.checkCollision(player)) {
             player.takeDamage(1, this.x);
         }
@@ -1147,7 +1209,6 @@ class Enemy extends Entity {
         if (this.dead) return;
         ctx.fillStyle = COLORS.enemy;
         ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
-        // Eyes
         ctx.fillStyle = 'orange';
         ctx.fillRect(this.x - camX + (this.dir===1?20:5), this.y - camY + 5, 5, 5);
     }
@@ -1169,18 +1230,13 @@ const Game = {
         window.addEventListener('resize', Game.resize);
         Input.init();
         
-        // Build Level
-        // Floor
         Game.map.push({x: -500, y: 500, w: 2000, h: 100});
-        // Platforms
         Game.map.push({x: 300, y: 400, w: 200, h: 20});
         Game.map.push({x: 600, y: 300, w: 200, h: 20});
         Game.map.push({x: 100, y: 250, w: 100, h: 20});
-        // Walls
         Game.map.push({x: -500, y: -500, w: 100, h: 1000});
         Game.map.push({x: 1400, y: -500, w: 100, h: 1000});
 
-        // Spawn Entities
         Game.player = new Player(100, 300);
         Game.enemies.push(new Enemy(500, 470));
         Game.enemies.push(new Enemy(700, 270));
@@ -1242,7 +1298,6 @@ const Game = {
 
         const ctx = Game.ctx;
         
-        // 1. Update
         Game.player.update(Game.map, Game.enemies);
         
         Game.enemies.forEach(e => e.update(Game.map, Game.player));
@@ -1252,22 +1307,18 @@ const Game = {
             if(p.markedForDeletion) Game.particles.splice(i, 1);
         });
 
-        // Networking Update
         if (window.Network && window.Network.connected) {
             window.Network.sendUpdate(Game.player);
         }
 
-        // Camera Logic
         let targetCamX = Game.player.x + Game.player.w/2 - Game.canvas.width/2;
         let targetCamY = Game.player.y + Game.player.h/2 - Game.canvas.height/2;
         
-        // Clamp Camera
         if (targetCamY > 100) targetCamY = 100; 
 
         Game.camera.x += (targetCamX - Game.camera.x) * 0.1;
         Game.camera.y += (targetCamY - Game.camera.y) * 0.1;
         
-        // Screenshake
         let shakeX = 0, shakeY = 0;
         if (Game.camera.shake > 0) {
             shakeX = (Math.random() - 0.5) * Game.camera.shake;
@@ -1279,11 +1330,9 @@ const Game = {
         const cx = Game.camera.x + shakeX;
         const cy = Game.camera.y + shakeY;
 
-        // 2. Draw
         ctx.fillStyle = COLORS.bg;
         ctx.fillRect(0, 0, Game.canvas.width, Game.canvas.height);
 
-        // Draw Map
         ctx.fillStyle = COLORS.platform;
         ctx.strokeStyle = COLORS.platformBorder;
         ctx.lineWidth = 2;
@@ -1292,42 +1341,28 @@ const Game = {
             ctx.strokeRect(rect.x - cx, rect.y - cy, rect.w, rect.h);
         }
 
-        // Draw Remote Players
         if (window.Network && window.Network.remotePlayers) {
             Object.keys(window.Network.remotePlayers).forEach(key => {
                 const p = window.Network.remotePlayers[key];
-                // Interpolate simple ghost
-                ctx.save();
-                ctx.translate(p.x - cx + 12, p.y - cy + 40);
-                ctx.scale(p.f || 1, 1);
-                ctx.translate(-(p.x - cx + 12), -(p.y - cy + 40));
                 
-                // Ghost Body
-                ctx.fillStyle = COLORS.otherPlayer;
-                ctx.beginPath();
-                ctx.ellipse(p.x - cx + 12, p.y - cy + 20, 10, 18, 0, 0, Math.PI * 2);
-                ctx.fill();
-                
+                // Draw Remote Vessel (Skin)
+                // Use default width/height of player: 24, 40
+                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true);
+
                 // Name Tag
                 ctx.fillStyle = '#aaa';
                 ctx.font = '10px Cinzel';
                 ctx.textAlign = 'center';
                 ctx.fillText(p.n || 'Vessel', p.x - cx + 12, p.y - cy - 10);
-                
-                ctx.restore();
             });
         }
 
-        // Draw Enemies
         Game.enemies.forEach(e => e.draw(ctx, cx, cy));
 
-        // Draw Player
         Game.player.draw(ctx, cx, cy);
 
-        // Draw Particles
         Game.particles.forEach(p => p.draw(ctx, cx, cy));
 
-        // Vignette
         const grad = ctx.createRadialGradient(Game.canvas.width/2, Game.canvas.height/2, 200, Game.canvas.width/2, Game.canvas.height/2, 800);
         grad.addColorStop(0, 'rgba(0,0,0,0)');
         grad.addColorStop(1, 'rgba(0,0,0,0.6)');
@@ -1338,7 +1373,6 @@ const Game = {
     }
 };
 
-// Start
 window.Game = Game;
 window.onload = Game.init;
 
