@@ -253,19 +253,37 @@
             bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            width: 300px;
+            width: 320px;
             pointer-events: auto;
             display: none;
         }
-        #chat-input {
+        #chat-wrapper {
+            display: flex;
             width: 100%;
             background: rgba(0,0,0,0.8);
             border: 1px solid #666;
+        }
+        #chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
             color: white;
             padding: 10px;
             font-family: 'Cinzel', serif;
             outline: none;
-            text-align: center;
+        }
+        #chat-send-btn {
+            width: 40px;
+            background: #333;
+            border: none;
+            border-left: 1px solid #555;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #chat-send-btn:hover {
+            background: #555;
         }
 
         /* Server List Styles */
@@ -297,6 +315,34 @@
             background: #fff;
             color: #000;
         }
+
+        /* Customization Menu */
+        .custom-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .color-swatch {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #555;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .color-swatch:hover { transform: scale(1.1); border-color: white; }
+        .color-swatch.selected { border-color: #fff; box-shadow: 0 0 10px white; }
+
+        .cust-arrow {
+            background: transparent;
+            border: 1px solid #555;
+            color: white;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+        }
+        .cust-arrow:hover { background: #333; }
     </style>
 </head>
 <body>
@@ -321,7 +367,10 @@
         </div>
 
         <div id="chat-container">
-            <input type="text" id="chat-input" placeholder="Say something..." maxlength="30">
+            <div id="chat-wrapper">
+                <input type="text" id="chat-input" placeholder="Say something..." maxlength="30">
+                <button id="chat-send-btn">></button>
+            </div>
         </div>
 
         <div id="notification" class="notification">Saved Game</div>
@@ -366,7 +415,10 @@
                 </div>
             </div>
 
-            <button class="btn" id="btn-settings">Settings</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" id="btn-customize">Customize</button>
+                <button class="btn" id="btn-settings">Settings</button>
+            </div>
             
             <div class="controls-grid">
                 <div class="key-row"><span>Movement</span> <div><span class="key-cap">A</span><span class="key-cap">D</span></div></div>
@@ -374,6 +426,7 @@
                 <div class="key-row"><span>Jump</span> <span class="key-cap">SPACE</span></div>
                 <div class="key-row"><span>Dash</span> <span class="key-cap">SHIFT</span></div>
                 <div class="key-row"><span>Attack</span> <div class="mouse-icon mouse-l"></div></div>
+                <div class="key-row"><span>Fireball</span> <span class="key-cap">Q</span></div>
                 <div class="key-row"><span>Heal (Hold)</span> <div class="mouse-icon mouse-r"></div></div>
                 <div class="key-row"><span>Chat</span> <span class="key-cap">T</span></div>
             </div>
@@ -384,11 +437,45 @@
             <h2 class="menu-title" style="font-size: 2rem;">Settings</h2>
             
             <div style="width: 300px; display: flex; flex-direction: column; gap: 20px; background: rgba(0,0,0,0.6); padding: 30px; border-radius: 8px; border: 1px solid #444; text-align: center;">
-                <p style="color: #aaa;">No Audio Options Available</p>
-                <p style="color: #666; font-size: 0.8rem;">Sound has been disabled.</p>
+                <p style="color: #aaa;">Audio Disabled</p>
+                <p style="color: #666; font-size: 0.8rem;">All sound effects and music have been removed.</p>
             </div>
 
             <button class="btn" id="btn-settings-back" style="margin-top: 30px;">Back</button>
+        </div>
+
+        <!-- CUSTOMIZATION MENU -->
+        <div id="customize-menu" class="menu-screen hidden">
+            <h2 class="menu-title" style="font-size: 2rem;">Vessel Style</h2>
+            
+            <div style="width: 300px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 8px; border: 1px solid #444;">
+                <div class="custom-option">
+                    <span>Mask Style</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="cust-arrow" id="mask-prev"><</button>
+                        <span id="mask-display" style="width: 20px; text-align: center;">1</span>
+                        <button class="cust-arrow" id="mask-next">></button>
+                    </div>
+                </div>
+
+                <div class="custom-option" style="flex-direction: column; align-items: flex-start;">
+                    <span style="margin-bottom: 10px;">Cloak Color</span>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div class="color-swatch selected" data-color="#2c3e50" style="background: #2c3e50;"></div>
+                        <div class="color-swatch" data-color="#c0392b" style="background: #c0392b;"></div>
+                        <div class="color-swatch" data-color="#27ae60" style="background: #27ae60;"></div>
+                        <div class="color-swatch" data-color="#8e44ad" style="background: #8e44ad;"></div>
+                        <div class="color-swatch" data-color="#d35400" style="background: #d35400;"></div>
+                        <div class="color-swatch" data-color="#7f8c8d" style="background: #7f8c8d;"></div>
+                    </div>
+                </div>
+
+                <div style="height: 100px; border: 1px solid #333; background: #0f0f16; display: flex; justify-content: center; align-items: center; margin-top: 20px;">
+                    <canvas id="preview-canvas" width="100" height="100"></canvas>
+                </div>
+            </div>
+
+            <button class="btn" id="btn-customize-done" style="margin-top: 20px;">Done</button>
         </div>
 
         <div id="pause-menu" class="menu-screen hidden">
@@ -564,11 +651,14 @@
                     f: playerData.facing, 
                     s: playerData.animState, 
                     a: playerData.attacking,
+                    fb: playerData.firingFireball, // Fireball state
                     hp: playerData.health,
                     n: Network.playerName,
+                    cc: playerData.cloakColor, // Sync Customization
+                    ms: playerData.maskStyle,
                     ts: now,
-                    msg: playerData.chatMessage, // Sync Chat
-                    mt: playerData.chatTimer // Sync Chat Timer to expire bubbles remotely
+                    msg: playerData.chatMessage,
+                    mt: playerData.chatTimer
                 });
                 Network.lastUpdate = now;
             }
@@ -601,10 +691,20 @@
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('settings-menu').classList.remove('hidden');
     });
-
     // Back from Settings
     document.getElementById('btn-settings-back').addEventListener('click', () => {
         document.getElementById('settings-menu').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+    });
+    
+    // Customize Menu
+    document.getElementById('btn-customize').addEventListener('click', () => {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('customize-menu').classList.remove('hidden');
+        window.Game.previewCustomization();
+    });
+    document.getElementById('btn-customize-done').addEventListener('click', () => {
+        document.getElementById('customize-menu').classList.add('hidden');
         document.getElementById('start-screen').classList.remove('hidden');
     });
 
@@ -651,6 +751,7 @@ const Input = {
             // Toggle Chat
             if(e.code === 'KeyT' && !document.getElementById('chat-container').style.display.includes('block')) {
                 Game.toggleChat(true);
+                e.preventDefault();
             }
             // Send Chat
             if(e.code === 'Enter' && document.getElementById('chat-container').style.display.includes('block')) {
@@ -679,6 +780,7 @@ const Input = {
     jump: () => Input.keys['Space'] || Input.keys['KeyZ'],
     dash: () => Input.keys['ShiftLeft'] || Input.keys['KeyC'],
     attack: () => Input.mouse.left || Input.keys['KeyX'],
+    fireball: () => Input.keys['KeyQ'],
     heal: () => Input.mouse.right || Input.keys['KeyF'], 
     pause: () => Input.keys['Escape']
 };
@@ -726,6 +828,67 @@ class Particle extends Entity {
     }
 }
 
+class Fireball extends Entity {
+    constructor(x, y, dir) {
+        super(x, y, 30, 20);
+        this.dir = dir;
+        this.vx = dir * 12; // Fast speed
+        this.life = 60; // 1 second approx
+    }
+    update(map, enemies) {
+        this.x += this.vx;
+        this.life--;
+        
+        // Spawn particles
+        if (this.life % 2 === 0) {
+            Game.particles.push(new Particle(this.x + (this.dir===1?0:this.w), this.y + this.h/2, 'rgba(255,255,255,0.7)', -this.dir * 2, (Math.random()-0.5)*2, 10));
+        }
+
+        if (this.life <= 0) {
+            this.markedForDeletion = true;
+            return;
+        }
+
+        // Wall Collision
+        for (const rect of map) {
+            if (this.checkCollision({getBounds: () => ({left: rect.x, right: rect.x+rect.w, top: rect.y, bottom: rect.y+rect.h})})) {
+                this.markedForDeletion = true;
+                this.explode();
+                return;
+            }
+        }
+
+        // Enemy Collision
+        enemies.forEach(e => {
+            if (!e.dead && this.checkCollision(e)) {
+                e.takeDamage(2); // Strong damage
+                this.markedForDeletion = true;
+                this.explode();
+            }
+        });
+    }
+
+    explode() {
+        for(let i=0; i<10; i++) {
+             Game.particles.push(new Particle(this.x + this.w/2, this.y + this.h/2, 'white', (Math.random()-0.5)*10, (Math.random()-0.5)*10, 20));
+        }
+    }
+
+    draw(ctx, camX, camY) {
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        const cx = this.x - camX + this.w/2;
+        const cy = this.y - camY + this.h/2;
+        ctx.ellipse(cx, cy, 15, 10, 0, 0, Math.PI*2);
+        ctx.fill();
+        // Inner core
+        ctx.fillStyle = 'rgba(200,200,255,0.8)';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 10, 6, 0, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
+
 class Player extends Entity {
     constructor(x, y) {
         super(x, y, 24, 40);
@@ -743,6 +906,8 @@ class Player extends Entity {
         this.attacking = false;
         this.attackTimer = 0;
         this.attackCooldown = 0;
+        this.fireballCooldown = 0;
+        this.firingFireball = false; 
         this.healing = false;
         this.invulnerable = 0;
         this.dead = false;
@@ -755,6 +920,10 @@ class Player extends Entity {
         // Chat
         this.chatMessage = "";
         this.chatTimer = 0;
+
+        // Customization
+        this.cloakColor = '#2c3e50';
+        this.maskStyle = 0; // 0: Default, 1: Curved, 2: Pointy
     }
 
     respawn() {
@@ -869,6 +1038,25 @@ class Player extends Entity {
             Game.camera.shake = 5;
         }
 
+        // Fireball Ability
+        if (Input.fireball() && this.fireballCooldown <= 0 && !this.healing && Input.active) {
+            this.fireballCooldown = 60; // 1 second cooldown
+            this.firingFireball = true;
+            setTimeout(() => this.firingFireball = false, 200);
+            
+            // Cost logic (optional, keeping it low cost/free with cooldown)
+            // if (this.soul >= 10) this.soul -= 10;
+            
+            const fbX = this.facing === 1 ? this.x + this.w + 5 : this.x - 35;
+            const fbY = this.y + 10;
+            Game.fireballs.push(new Fireball(fbX, fbY, this.facing));
+            
+            // Recoil
+            this.vx = -this.facing * 5; 
+            Game.camera.shake = 5;
+            Game.updateHUD();
+        }
+
         if (Input.attack() && !this.attacking && this.attackCooldown <= 0 && !this.healing && Input.active) {
             this.attacking = true;
             this.attackTimer = ATTACK_DURATION;
@@ -905,6 +1093,7 @@ class Player extends Entity {
 
         if (this.dashCooldown > 0) this.dashCooldown--;
         if (this.attackCooldown > 0) this.attackCooldown--;
+        if (this.fireballCooldown > 0) this.fireballCooldown--;
         if (this.invulnerable > 0) this.invulnerable--;
         if (this.attacking) this.attackTimer--;
         if (this.attackTimer <= 0) this.attacking = false;
@@ -957,12 +1146,12 @@ class Player extends Entity {
     draw(ctx, camX, camY) {
         if (this.invulnerable > 0 && Math.floor(Date.now() / 50) % 2 === 0) return; 
         
-        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null);
+        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null, this.cloakColor, this.maskStyle);
     }
 }
 
 // Draw Vessel Function (Handles Skins and Chat)
-function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg) {
+function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg, cloakColor, maskStyle) {
     const cx = x + w/2;
     const cy = y + h; 
 
@@ -999,7 +1188,7 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
     ctx.translate(-cx, -cy);
 
     // Cloak
-    ctx.fillStyle = COLORS.cloak;
+    ctx.fillStyle = cloakColor || COLORS.cloak;
     ctx.beginPath();
     ctx.moveTo(cx, y + 15);
     ctx.lineTo(cx - 12, y + h);
@@ -1009,12 +1198,30 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
     // Head
     ctx.fillStyle = isRemote ? COLORS.otherPlayer : COLORS.player;
     ctx.beginPath();
-    ctx.moveTo(cx - 8, y);
-    ctx.lineTo(cx - 8, y - 12);
-    ctx.lineTo(cx - 4, y);
-    ctx.moveTo(cx + 8, y);
-    ctx.lineTo(cx + 8, y - 12);
-    ctx.lineTo(cx + 4, y);
+    
+    const mStyle = maskStyle || 0;
+    
+    if (mStyle == 0) { // Default
+        ctx.moveTo(cx - 8, y);
+        ctx.lineTo(cx - 8, y - 12);
+        ctx.lineTo(cx - 4, y);
+        ctx.moveTo(cx + 8, y);
+        ctx.lineTo(cx + 8, y - 12);
+        ctx.lineTo(cx + 4, y);
+    } else if (mStyle == 1) { // Curved
+        ctx.moveTo(cx - 8, y);
+        ctx.quadraticCurveTo(cx - 12, y - 10, cx - 4, y);
+        ctx.moveTo(cx + 8, y);
+        ctx.quadraticCurveTo(cx + 12, y - 10, cx + 4, y);
+    } else if (mStyle == 2) { // Pointy
+        ctx.moveTo(cx - 8, y);
+        ctx.lineTo(cx - 10, y - 15);
+        ctx.lineTo(cx - 4, y);
+        ctx.moveTo(cx + 8, y);
+        ctx.lineTo(cx + 10, y - 15);
+        ctx.lineTo(cx + 4, y);
+    }
+
     ctx.fill();
     ctx.beginPath();
     ctx.ellipse(cx, y + 10, 11, 12, 0, 0, Math.PI * 2);
@@ -1105,6 +1312,7 @@ const Game = {
     ctx: document.getElementById('gameCanvas').getContext('2d'),
     player: null,
     enemies: [],
+    fireballs: [],
     particles: [],
     map: [],
     camera: {x: 0, y: 0, shake: 0},
@@ -1146,12 +1354,46 @@ const Game = {
         Game.map.push({x: -200, y: -900, w: 150, h: 30});
 
         Game.player = new Player(100, 300);
+        
+        // Init Customization UI
+        const colors = document.querySelectorAll('.color-swatch');
+        colors.forEach(c => {
+            c.addEventListener('click', (e) => {
+                colors.forEach(el => el.classList.remove('selected'));
+                e.target.classList.add('selected');
+                Game.player.cloakColor = e.target.dataset.color;
+                Game.previewCustomization();
+            });
+        });
+
+        document.getElementById('mask-next').addEventListener('click', () => {
+            Game.player.maskStyle = (Game.player.maskStyle + 1) % 3;
+            document.getElementById('mask-display').innerText = Game.player.maskStyle + 1;
+            Game.previewCustomization();
+        });
+        document.getElementById('mask-prev').addEventListener('click', () => {
+            Game.player.maskStyle = (Game.player.maskStyle - 1 + 3) % 3;
+            document.getElementById('mask-display').innerText = Game.player.maskStyle + 1;
+            Game.previewCustomization();
+        });
+
+        // Chat Button
+        document.getElementById('chat-send-btn').addEventListener('click', Game.sendChat);
+
         Game.enemies.push(new Enemy(500, 470));
         Game.enemies.push(new Enemy(700, 270));
         Game.enemies.push(new Enemy(-300, 470));
         Game.enemies.push(new Enemy(0, -530));
     },
     
+    previewCustomization: () => {
+        const c = document.getElementById('preview-canvas');
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0,0,100,100);
+        // Draw vessel at center
+        drawVessel(ctx, 38, 30, 24, 40, 1, 1, 1, false, false, false, null, Game.player.cloakColor, Game.player.maskStyle);
+    },
+
     startGame: () => {
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
@@ -1261,6 +1503,12 @@ const Game = {
         
         Game.player.update(Game.map, Game.enemies);
         Game.enemies.forEach(e => e.update(Game.map, Game.player));
+        
+        Game.fireballs.forEach((f, i) => {
+            f.update(Game.map, Game.enemies);
+            if(f.markedForDeletion) Game.fireballs.splice(i, 1);
+        });
+
         Game.particles.forEach((p, i) => {
             p.update();
             if(p.markedForDeletion) Game.particles.splice(i, 1);
@@ -1302,11 +1550,14 @@ const Game = {
         if (window.Network && window.Network.remotePlayers) {
             Object.keys(window.Network.remotePlayers).forEach(key => {
                 const p = window.Network.remotePlayers[key];
-                // Check if message is expired
                 const msg = (p.mt && p.mt > 0) ? p.msg : null;
                 
-                // FIXED: Use p.a (attacking boolean) instead of p.s
-                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg);
+                // Spawn remote fireball visually if fb flag is set (crude but works for quick visual)
+                if (p.fb) {
+                     Game.particles.push(new Particle(p.x - cx + (p.f*10), p.y - cy + 20, 'rgba(200,200,255,0.8)', p.f*5, 0, 10));
+                }
+
+                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg, p.cc, p.ms);
 
                 ctx.fillStyle = '#aaa';
                 ctx.font = '10px Cinzel';
@@ -1316,6 +1567,8 @@ const Game = {
         }
 
         Game.enemies.forEach(e => e.draw(ctx, cx, cy));
+
+        Game.fireballs.forEach(f => f.draw(ctx, cx, cy));
 
         Game.player.draw(ctx, cx, cy);
 
