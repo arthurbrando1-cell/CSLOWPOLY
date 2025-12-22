@@ -415,13 +415,7 @@
                     </div>
                     <input type="range" id="vol-master" min="0" max="100" value="50" style="width: 100%;">
                 </div>
-                <div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                        <label>Music Volume</label>
-                        <span id="val-music" style="color: #aaa;">10%</span>
-                    </div>
-                    <input type="range" id="vol-music" min="0" max="100" value="10" style="width: 100%;">
-                </div>
+                <!-- Music Control Removed -->
                 <div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                         <label>SFX Volume</label>
@@ -538,29 +532,35 @@
 
         attemptJoin: async (roomCode, capacity) => {
             try {
-                await Network.initApp(); // Ensure Auth
+                // 1. Ensure Auth is Ready
+                if (!Network.auth.currentUser) {
+                    await Network.initApp();
+                }
 
-                const db = Network.db;
-                const roomRef = ref(db, `hk_multiplayer/rooms/${roomCode}`);
-                
+                // 2. Fetch Room State
+                const roomRef = ref(Network.db, `hk_multiplayer/rooms/${roomCode}`);
                 const snapshot = await get(roomRef);
                 const val = snapshot.val() || {};
                 const players = val.players || {};
-                const settings = val.settings || {};
                 
-                let maxPlayers = settings.maxPlayers;
+                // 3. Determine Max Players (Handle missing settings)
+                let maxPlayers = val.settings ? val.settings.maxPlayers : null;
                 
                 if (!maxPlayers) {
+                    // Room might be new or settings missing. Initialize it.
                     maxPlayers = parseInt(capacity) || 4;
-                    await set(child(roomRef, 'settings/maxPlayers'), maxPlayers);
+                    // Use update to safely set settings without deleting players if they exist
+                    await update(child(roomRef, 'settings'), { maxPlayers: maxPlayers });
                 }
                 
+                // 4. Check Capacity
                 const currentCount = Object.keys(players).length;
                 if (currentCount >= maxPlayers) {
                     alert(`Room ${roomCode} is full! (${currentCount}/${maxPlayers})`);
                     return;
                 }
 
+                // 5. Connect
                 Network.connectToRoom(roomCode, maxPlayers);
 
             } catch (e) {
@@ -611,7 +611,8 @@
                     x: Math.round(playerData.x),
                     y: Math.round(playerData.y),
                     f: playerData.facing, 
-                    a: playerData.attacking, // Send attack state
+                    s: playerData.animState, // Send animation state
+                    a: playerData.attacking,
                     hp: playerData.health,
                     n: Network.playerName,
                     ts: now
@@ -665,12 +666,6 @@
         updateVolLabel('val-master', val);
     });
 
-    document.getElementById('vol-music').addEventListener('input', (e) => {
-        const val = e.target.value / 100;
-        window.SoundManager.setMusic(val);
-        updateVolLabel('val-music', val);
-    });
-
     document.getElementById('vol-sfx').addEventListener('input', (e) => {
         const val = e.target.value / 100;
         window.SoundManager.setSfx(val);
@@ -699,7 +694,7 @@ const COLORS = {
     platform: '#1a1a2e',
     platformBorder: '#3d3d5c',
     player: '#f0f0f0',
-    otherPlayer: '#d0d0f0', // Slight tint for others
+    otherPlayer: '#d0d0f0', 
     cloak: '#2c3e50',
     enemy: '#d35400',
     boss: '#c0392b',
@@ -729,14 +724,12 @@ delayNode.connect(audioCtx.destination);
 
 const SoundManager = {
     masterVol: 0.5,
-    musicVol: 0.1, // Lower default music volume
     sfxVol: 0.5,
 
     setMaster: (v) => SoundManager.masterVol = v,
-    setMusic: (v) => SoundManager.musicVol = v,
     setSfx: (v) => SoundManager.sfxVol = v,
     
-    playTone: (freq, type, duration, vol = 0.1, slide = 0, isMusic = false) => {
+    playTone: (freq, type, duration, vol = 0.1, slide = 0) => {
         if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -746,9 +739,8 @@ const SoundManager = {
             osc.frequency.exponentialRampToValueAtTime(freq + slide, audioCtx.currentTime + duration);
         }
         
-        // Calculate volume based on category
-        const catVol = isMusic ? SoundManager.musicVol : SoundManager.sfxVol;
-        const finalVol = vol * SoundManager.masterVol * catVol;
+        // Calculate volume
+        const finalVol = vol * SoundManager.masterVol * SoundManager.sfxVol;
 
         gain.gain.setValueAtTime(finalVol, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
@@ -756,30 +748,6 @@ const SoundManager = {
         osc.connect(masterGain); 
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
-    },
-    
-    playMusic: () => {
-        if (window.musicInterval) return;
-        const notes = [146.83, 174.61, 220.00, 261.63, 293.66, 349.23, 392.00]; 
-        let tick = 0;
-
-        window.musicInterval = setInterval(() => {
-            if (audioCtx.state === 'suspended') return;
-            
-            // Bass
-            if (tick % 8 === 0) {
-                SoundManager.playTone(73.42, 'sine', 6.0, 0.08, 0, true); 
-                SoundManager.playTone(110.00, 'triangle', 6.0, 0.03, 0, true); 
-            }
-            
-            // Melody
-            if (Math.random() > 0.4) {
-                const freq = notes[Math.floor(Math.random() * notes.length)];
-                SoundManager.playTone(freq, 'sine', 2.5, 0.03, 0, true);
-            }
-            
-            tick++;
-        }, 1500);
     },
 
     playJump: () => SoundManager.playTone(300, 'sine', 0.2, 0.1, -100),
@@ -1249,7 +1217,7 @@ const Game = {
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
         Game.running = true;
-        SoundManager.playMusic();
+        // Music Removed
         requestAnimationFrame(Game.loop);
     },
     
