@@ -302,15 +302,29 @@
             <p style="color: #888; margin-top: -20px; margin-bottom: 30px;">Multiplayer Online</p>
             
             <!-- Room Controls -->
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 20px; width: 100%; max-width: 300px;">
-                <input type="text" id="room-code-input" placeholder="ENTER ROOM CODE" maxlength="10" 
-                    style="background: rgba(0,0,0,0.5); border: 1px solid #666; color: white; padding: 10px; 
-                    font-family: 'Cinzel', serif; text-align: center; width: 100%; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 350px; background: rgba(0,0,0,0.5); padding: 20px; border: 1px solid #444; border-radius: 8px;">
                 
-                <div style="display: flex; gap: 10px; width: 100%;">
-                    <button class="btn" id="btn-join" style="flex: 1; margin: 0;">Join / Create</button>
-                    <button class="btn" id="btn-random" style="flex: 1; margin: 0;">Random Public</button>
+                <div style="width: 100%; text-align: center;">
+                    <label style="display: block; color: #aaa; font-size: 0.8rem; margin-bottom: 5px;">CREATE OR JOIN ROOM</label>
+                    <input type="text" id="room-code-input" placeholder="TYPE ROOM CODE HERE" maxlength="15" 
+                        style="background: rgba(255,255,255,0.1); border: 1px solid #666; color: #fff; padding: 12px; 
+                        font-family: 'Cinzel', serif; text-align: center; width: 100%; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; box-sizing: border-box;">
                 </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
+                    <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                        <span style="color: #aaa; font-size: 0.7rem;">MAX CAPACITY</span>
+                        <input type="number" id="capacity-input" value="4" min="2" max="32" 
+                            style="background: rgba(0,0,0,0.3); border: 1px solid #555; color: white; padding: 8px; 
+                            font-family: 'Cinzel', serif; text-align: center; width: 80px;">
+                    </div>
+                    
+                    <button class="btn" id="btn-join" style="flex: 1; margin: 0; background: rgba(255,255,255,0.1);">ENTER ROOM</button>
+                </div>
+
+                <div style="width: 100%; height: 1px; background: #333; margin: 5px 0;"></div>
+
+                <button class="btn" id="btn-random" style="width: 100%; margin: 0; font-size: 0.9rem; padding: 10px;">Find Random Public Game</button>
             </div>
 
             <button class="btn" id="btn-settings">Settings</button>
@@ -343,7 +357,7 @@
 <!-- Scripts -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, onDisconnect, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, onDisconnect, remove, update, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     // --- FIREBASE CONFIG ---
     const firebaseConfig = {
@@ -373,56 +387,79 @@
              if (!Network.app) {
                 Network.app = initializeApp(firebaseConfig);
                 Network.db = getDatabase(Network.app);
-                // Generate ID and Name once
                 Network.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
                 Network.playerName = "Vessel " + Math.floor(Math.random() * 1000);
              }
         },
 
-        joinRoom: (roomCode) => {
+        attemptJoin: async (roomCode, capacity) => {
             try {
                 Network.initApp();
-                Network.currentRoom = roomCode;
+                const db = Network.db;
+                const roomRef = ref(db, `hk_multiplayer/rooms/${roomCode}`);
+                
+                // Check Room Data
+                const snapshot = await get(roomRef);
+                const val = snapshot.val() || {};
+                const players = val.players || {};
+                const settings = val.settings || {};
+                
+                let maxPlayers = settings.maxPlayers;
+                
+                // Create room settings if new
+                if (!maxPlayers) {
+                    maxPlayers = parseInt(capacity) || 4;
+                    await set(child(roomRef, 'settings/maxPlayers'), maxPlayers);
+                }
+                
+                // Check Capacity
+                const currentCount = Object.keys(players).length;
+                if (currentCount >= maxPlayers) {
+                    alert(`Room ${roomCode} is full! (${currentCount}/${maxPlayers})`);
+                    return;
+                }
 
-                // Define References based on Room Code
+                Network.connectToRoom(roomCode, maxPlayers);
+
+            } catch (e) {
+                console.error("Join Failed", e);
+                alert("Network Error: " + e.message);
+            }
+        },
+
+        connectToRoom: (roomCode, maxPlayers) => {
+            try {
+                Network.currentRoom = roomCode;
                 const roomPath = `hk_multiplayer/rooms/${roomCode}/players`;
                 Network.playerRef = ref(Network.db, `${roomPath}/${Network.playerId}`);
                 Network.roomRef = ref(Network.db, roomPath);
 
-                // Remove player on disconnect
                 onDisconnect(Network.playerRef).remove();
 
-                // Listen for other players in THIS room
                 onValue(Network.roomRef, (snapshot) => {
                     const data = snapshot.val() || {};
-                    delete data[Network.playerId]; // Remove self
+                    delete data[Network.playerId];
                     Network.remotePlayers = data;
                     
-                    // Update UI
                     const count = Object.keys(data).length + 1;
-                    document.getElementById('player-count').innerText = `${count} Online`;
+                    document.getElementById('player-count').innerText = `${count}/${maxPlayers} Online`;
                     document.getElementById('net-dot').classList.add('connected');
                     document.getElementById('server-id').innerText = `Room: ${roomCode}`;
                     document.getElementById('server-id').style.display = 'block';
                 });
 
                 Network.connected = true;
-                console.log(`Joined Room: ${roomCode} as ${Network.playerName}`);
-                
-                // Start Game Engine
+                console.log(`Joined Room: ${roomCode}`);
                 window.Game.startGame();
 
             } catch (e) {
-                console.error("Firebase Connection Failed", e);
-                alert("Connection Error. Check console.");
-                document.getElementById('player-count').innerText = "Offline Mode";
+                console.error("Connection Failed", e);
             }
         },
 
         sendUpdate: (playerData) => {
             if (!Network.connected || !Network.playerRef) return;
             const now = Date.now();
-            // Cap updates to ~20fps to save bandwidth
             if (now - Network.lastUpdate > 50) {
                 update(Network.playerRef, {
                     x: Math.round(playerData.x),
@@ -430,7 +467,7 @@
                     f: playerData.facing, 
                     s: playerData.animState, 
                     hp: playerData.health,
-                    n: Network.playerName, // Send Name
+                    n: Network.playerName,
                     ts: now
                 });
                 Network.lastUpdate = now;
@@ -444,12 +481,14 @@
     // Start Game Hooks
     document.getElementById('btn-join').addEventListener('click', () => {
         const input = document.getElementById('room-code-input');
+        const capInput = document.getElementById('capacity-input');
         const code = input.value.trim().toUpperCase() || 'PUBLIC';
-        Network.joinRoom(code);
+        const capacity = parseInt(capInput.value) || 4;
+        Network.attemptJoin(code, capacity);
     });
 
     document.getElementById('btn-random').addEventListener('click', () => {
-        Network.joinRoom('PUBLIC');
+        Network.attemptJoin('PUBLIC', 20); // Public room large capacity
     });
 
     document.getElementById('btn-resume').addEventListener('click', () => window.Game.resumeGame());
@@ -490,6 +529,25 @@ const COLORS = {
 
 // --- AUDIO SYSTEM (Web Audio API) ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// FX Bus (Delay/Reverb Simulation)
+const masterGain = audioCtx.createGain();
+masterGain.connect(audioCtx.destination);
+
+const delayNode = audioCtx.createDelay();
+delayNode.delayTime.value = 0.4;
+const feedbackNode = audioCtx.createGain();
+feedbackNode.gain.value = 0.3;
+const delayFilter = audioCtx.createBiquadFilter();
+delayFilter.type = "lowpass";
+delayFilter.frequency.value = 1000;
+
+masterGain.connect(delayNode);
+delayNode.connect(delayFilter);
+delayFilter.connect(feedbackNode);
+feedbackNode.connect(delayNode);
+delayNode.connect(audioCtx.destination);
+
 const SoundManager = {
     masterVol: 0.5,
     
@@ -506,33 +564,35 @@ const SoundManager = {
         gain.gain.setValueAtTime(vol * SoundManager.masterVol, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
         
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        osc.connect(masterGain); // Connect to Master/FX Bus
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
     },
     
     playMusic: () => {
-        // Simple Ambient Drone / Arpeggio Loop
         if (window.musicInterval) return;
         
-        let noteIdx = 0;
-        // D Minor scale notes (approx freq)
-        const notes = [146.83, 174.61, 220.00, 261.63, 293.66, 220.00, 174.61]; 
-        
+        // Atmospheric Scale (D Minor Pentatonicish)
+        const notes = [146.83, 174.61, 220.00, 261.63, 293.66, 349.23, 392.00]; 
+        let tick = 0;
+
         window.musicInterval = setInterval(() => {
             if (audioCtx.state === 'suspended') return;
             
-            // Bass Drone
-            if (noteIdx % 4 === 0) {
-                SoundManager.playTone(73.42, 'sine', 4.0, 0.05); // Low D
+            // Deep Drone (Bass)
+            if (tick % 8 === 0) {
+                SoundManager.playTone(73.42, 'sine', 6.0, 0.08); 
+                SoundManager.playTone(110.00, 'triangle', 6.0, 0.03); 
             }
             
-            // Arpeggio
-            const freq = notes[noteIdx % notes.length];
-            SoundManager.playTone(freq, 'sine', 1.5, 0.02);
-            noteIdx++;
-        }, 1200);
+            // Random Melodic Droplets
+            if (Math.random() > 0.4) {
+                const freq = notes[Math.floor(Math.random() * notes.length)];
+                SoundManager.playTone(freq, 'sine', 2.5, 0.03);
+            }
+            
+            tick++;
+        }, 1500);
     },
 
     playJump: () => SoundManager.playTone(300, 'sine', 0.2, 0.1, -100),
