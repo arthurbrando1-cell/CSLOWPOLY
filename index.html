@@ -6,6 +6,15 @@
     <title>Hollow Knight Web Clone - Multiplayer</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
+        .locked-icon {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #d32f2f;
+            border-radius: 50%;
+            margin-right: 5px;
+            box-shadow: 0 0 5px red;
+        }
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
         
         body {
@@ -439,6 +448,13 @@
                         
                         <button class="btn" id="btn-join" style="flex: 1; margin: 0; padding: 0; font-size: 0.8rem; background: #333;">GO</button>
                     </div>
+
+                    <!-- Password Input -->
+                    <div style="margin-top: 10px; width: 100%;">
+                        <input type="password" id="password-input" placeholder="Optional Password (Private)" 
+                            style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid #555; color: white; padding: 8px; 
+                            font-family: 'Cinzel', serif; text-align: center; font-size: 0.8rem;">
+                    </div>
                     
                     <!-- Game Mode Selection -->
                     <div style="margin-top: 15px; width: 100%;">
@@ -673,13 +689,17 @@
                     const r = rooms[roomCode];
                     const count = r.players ? Object.keys(r.players).length : 0;
                     const max = r.settings ? r.settings.maxPlayers : 4;
+                    const isPrivate = r.settings && r.settings.password && r.settings.password.length > 0;
                     
                     const el = document.createElement('div');
                     el.className = 'server-item';
                     el.innerHTML = `
                         <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                            <span style="color:white; font-weight:bold;">${roomCode}</span>
-                            <span style="color:#888; font-size:0.7rem;">Map: Hallownest</span>
+                            <div style="display:flex; align-items:center;">
+                                ${isPrivate ? '<div class="locked-icon" title="Private"></div>' : ''}
+                                <span style="color:white; font-weight:bold;">${roomCode}</span>
+                            </div>
+                            <span style="color:#888; font-size:0.7rem;">${r.settings && r.settings.mode ? r.settings.mode.toUpperCase() : 'ARENA'}</span>
                         </div>
                         <div style="display:flex; align-items:center; gap: 10px;">
                             <span style="color: ${count >= max ? '#d32f2f' : '#4caf50'}">${count}/${max}</span>
@@ -708,12 +728,30 @@
                 
                 let maxPlayers = settings.maxPlayers;
                 
+                // New Room Creation
                 if (!maxPlayers) {
                     maxPlayers = parseInt(capacity) || 4;
                     const pvp = document.getElementById('pvp-toggle').checked;
                     const rounds = parseInt(document.getElementById('rounds-input').value) || 3;
                     const mode = document.getElementById('mode-select').value || 'arena';
-                    await update(child(roomRef, 'settings'), { maxPlayers: maxPlayers, pvp: pvp, rounds: rounds, mode: mode });
+                    const pass = document.getElementById('password-input').value.trim();
+                    
+                    await update(child(roomRef, 'settings'), { 
+                        maxPlayers: maxPlayers, 
+                        pvp: pvp, 
+                        rounds: rounds, 
+                        mode: mode,
+                        password: pass
+                    });
+                } else {
+                    // Joining Existing Room - Check Password
+                    if (settings.password && settings.password.length > 0) {
+                        const entered = prompt("🔒 This room is private. Please enter the password:");
+                        if (entered !== settings.password) {
+                            alert("Incorrect Password!");
+                            return;
+                        }
+                    }
                 }
                 
                 const currentCount = Object.keys(players).length;
@@ -892,13 +930,13 @@
  * HOLLOW KNIGHT CLONE - MAIN ENGINE
  */
 
-const GRAVITY = 0.6;
-const TERMINAL_VELOCITY = 15;
+const GRAVITY = 0.55;
+const TERMINAL_VELOCITY = 20;
 const FRICTION = 0.8;
-const MOVE_SPEED = 6;
-const JUMP_FORCE = 12;
-const DASH_SPEED = 14;
-const DASH_DURATION = 12;
+const MOVE_SPEED = 7;
+const JUMP_FORCE = 16;
+const DASH_SPEED = 16;
+const DASH_DURATION = 14;
 const ATTACK_DURATION = 15;
 const INVULNERABILITY_TIME = 60;
 
@@ -1358,7 +1396,10 @@ class Player extends Entity {
         this.y += this.vy;
         this.checkCollisions(map, 'y');
         
-        if (this.y > 4000) this.takeDamage(1, this.x + 100);
+        // VOID HITKILL (Below Map)
+        if (this.y > 2000) {
+            this.takeDamage(999, this.x, 'void'); // 999 damage = Instant death
+        }
     }
 
     checkCollisions(map, axis) {
