@@ -418,9 +418,9 @@
                 <div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                         <label>Music Volume</label>
-                        <span id="val-music" style="color: #aaa;">30%</span>
+                        <span id="val-music" style="color: #aaa;">10%</span>
                     </div>
-                    <input type="range" id="vol-music" min="0" max="100" value="30" style="width: 100%;">
+                    <input type="range" id="vol-music" min="0" max="100" value="10" style="width: 100%;">
                 </div>
                 <div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
@@ -484,7 +484,10 @@
                 
                 Network.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
                 Network.playerName = "Vessel " + Math.floor(Math.random() * 1000);
+             }
 
+             // Ensure authentication is complete
+             if (!Network.auth.currentUser) {
                 try {
                     await signInAnonymously(Network.auth);
                     console.log("Authenticated with Firebase");
@@ -535,7 +538,7 @@
 
         attemptJoin: async (roomCode, capacity) => {
             try {
-                if (!Network.auth.currentUser) await Network.initApp();
+                await Network.initApp(); // Ensure Auth
 
                 const db = Network.db;
                 const roomRef = ref(db, `hk_multiplayer/rooms/${roomCode}`);
@@ -726,7 +729,7 @@ delayNode.connect(audioCtx.destination);
 
 const SoundManager = {
     masterVol: 0.5,
-    musicVol: 0.3, // Lower default music volume
+    musicVol: 0.1, // Lower default music volume
     sfxVol: 0.5,
 
     setMaster: (v) => SoundManager.masterVol = v,
