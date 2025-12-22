@@ -247,30 +247,25 @@
             font-family: 'Cinzel', serif;
         }
 
-        /* Mobile Controls */
-        #mobile-controls {
+        /* Chat Input */
+        #chat-container {
             position: absolute;
-            bottom: 20px;
-            width: 100%;
-            height: 150px;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
             pointer-events: auto;
             display: none;
-            justify-content: space-between;
-            padding: 0 40px;
-            box-sizing: border-box;
         }
-
-        .touch-btn {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 20px;
-            backdrop-filter: blur(2px);
+        #chat-input {
+            width: 100%;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #666;
+            color: white;
+            padding: 10px;
+            font-family: 'Cinzel', serif;
+            outline: none;
+            text-align: center;
         }
 
         /* Server List Styles */
@@ -302,32 +297,6 @@
             background: #fff;
             color: #000;
         }
-
-        /* Range Slider Styling */
-        input[type=range] {
-            -webkit-appearance: none; 
-            background: transparent; 
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: #ffffff;
-            cursor: pointer;
-            margin-top: -6px;
-            box-shadow: 0 0 10px rgba(255,255,255,0.5);
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #444;
-            border-radius: 2px;
-        }
-        input[type=range]:focus {
-            outline: none;
-        }
     </style>
 </head>
 <body>
@@ -347,6 +316,12 @@
             <div class="soul-container">
                 <div class="soul-liquid" id="soul-meter"></div>
             </div>
+            <!-- Chat Hint -->
+            <div style="font-size: 0.8rem; color: #666; margin-top: 10px;">Press 'T' to Chat</div>
+        </div>
+
+        <div id="chat-container">
+            <input type="text" id="chat-input" placeholder="Say something..." maxlength="30">
         </div>
 
         <div id="notification" class="notification">Saved Game</div>
@@ -400,29 +375,17 @@
                 <div class="key-row"><span>Dash</span> <span class="key-cap">SHIFT</span></div>
                 <div class="key-row"><span>Attack</span> <div class="mouse-icon mouse-l"></div></div>
                 <div class="key-row"><span>Heal (Hold)</span> <div class="mouse-icon mouse-r"></div></div>
+                <div class="key-row"><span>Chat</span> <span class="key-cap">T</span></div>
             </div>
         </div>
 
-        <!-- NEW SETTINGS MENU -->
+        <!-- SETTINGS MENU -->
         <div id="settings-menu" class="menu-screen hidden">
             <h2 class="menu-title" style="font-size: 2rem;">Settings</h2>
             
-            <div style="width: 300px; display: flex; flex-direction: column; gap: 20px; background: rgba(0,0,0,0.6); padding: 30px; border-radius: 8px; border: 1px solid #444;">
-                <div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                        <label>Master Volume</label>
-                        <span id="val-master" style="color: #aaa;">50%</span>
-                    </div>
-                    <input type="range" id="vol-master" min="0" max="100" value="50" style="width: 100%;">
-                </div>
-                <!-- Music Control Removed -->
-                <div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                        <label>SFX Volume</label>
-                        <span id="val-sfx" style="color: #aaa;">50%</span>
-                    </div>
-                    <input type="range" id="vol-sfx" min="0" max="100" value="50" style="width: 100%;">
-                </div>
+            <div style="width: 300px; display: flex; flex-direction: column; gap: 20px; background: rgba(0,0,0,0.6); padding: 30px; border-radius: 8px; border: 1px solid #444; text-align: center;">
+                <p style="color: #aaa;">No Audio Options Available</p>
+                <p style="color: #666; font-size: 0.8rem;">Sound has been disabled.</p>
             </div>
 
             <button class="btn" id="btn-settings-back" style="margin-top: 30px;">Back</button>
@@ -434,9 +397,6 @@
             <button class="btn" id="btn-save">Bench (Save)</button>
             <button class="btn" id="btn-quit">Quit</button>
         </div>
-
-        <div id="mobile-controls">
-            </div>
     </div>
 </div>
 
@@ -478,10 +438,7 @@
                 
                 Network.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
                 Network.playerName = "Vessel " + Math.floor(Math.random() * 1000);
-             }
 
-             // Ensure authentication is complete
-             if (!Network.auth.currentUser) {
                 try {
                     await signInAnonymously(Network.auth);
                     console.log("Authenticated with Firebase");
@@ -498,7 +455,7 @@
             onValue(listRef, (snapshot) => {
                 const rooms = snapshot.val() || {};
                 const listEl = document.getElementById('server-list-container');
-                listEl.innerHTML = ''; // Clear
+                listEl.innerHTML = ''; 
 
                 if (Object.keys(rooms).length === 0) {
                     listEl.innerHTML = '<div style="color: #666; font-size: 0.8rem; padding: 10px;">No active servers found. Create one above!</div>';
@@ -515,7 +472,7 @@
                     el.innerHTML = `
                         <div style="display:flex; flex-direction:column; align-items:flex-start;">
                             <span style="color:white; font-weight:bold;">${roomCode}</span>
-                            <span style="color:#888; font-size:0.7rem;">Map: Default</span>
+                            <span style="color:#888; font-size:0.7rem;">Map: Hallownest</span>
                         </div>
                         <div style="display:flex; align-items:center; gap: 10px;">
                             <span style="color: ${count >= max ? '#d32f2f' : '#4caf50'}">${count}/${max}</span>
@@ -532,35 +489,29 @@
 
         attemptJoin: async (roomCode, capacity) => {
             try {
-                // 1. Ensure Auth is Ready
-                if (!Network.auth.currentUser) {
-                    await Network.initApp();
-                }
+                if (!Network.auth.currentUser) await Network.initApp();
 
-                // 2. Fetch Room State
-                const roomRef = ref(Network.db, `hk_multiplayer/rooms/${roomCode}`);
+                const db = Network.db;
+                const roomRef = ref(db, `hk_multiplayer/rooms/${roomCode}`);
+                
                 const snapshot = await get(roomRef);
                 const val = snapshot.val() || {};
                 const players = val.players || {};
+                let settings = val.settings || {};
                 
-                // 3. Determine Max Players (Handle missing settings)
-                let maxPlayers = val.settings ? val.settings.maxPlayers : null;
+                let maxPlayers = settings.maxPlayers;
                 
                 if (!maxPlayers) {
-                    // Room might be new or settings missing. Initialize it.
                     maxPlayers = parseInt(capacity) || 4;
-                    // Use update to safely set settings without deleting players if they exist
                     await update(child(roomRef, 'settings'), { maxPlayers: maxPlayers });
                 }
                 
-                // 4. Check Capacity
                 const currentCount = Object.keys(players).length;
                 if (currentCount >= maxPlayers) {
                     alert(`Room ${roomCode} is full! (${currentCount}/${maxPlayers})`);
                     return;
                 }
 
-                // 5. Connect
                 Network.connectToRoom(roomCode, maxPlayers);
 
             } catch (e) {
@@ -611,11 +562,13 @@
                     x: Math.round(playerData.x),
                     y: Math.round(playerData.y),
                     f: playerData.facing, 
-                    s: playerData.animState, // Send animation state
+                    s: playerData.animState, 
                     a: playerData.attacking,
                     hp: playerData.health,
                     n: Network.playerName,
-                    ts: now
+                    ts: now,
+                    msg: playerData.chatMessage, // Sync Chat
+                    mt: playerData.chatTimer // Sync Chat Timer to expire bubbles remotely
                 });
                 Network.lastUpdate = now;
             }
@@ -623,7 +576,6 @@
     };
 
     window.Network = Network;
-
     Network.initApp();
 
     document.getElementById('btn-join').addEventListener('click', () => {
@@ -640,7 +592,6 @@
         Network.attemptJoin(code, capacity);
     });
 
-    // Settings & Menus
     document.getElementById('btn-resume').addEventListener('click', () => window.Game.resumeGame());
     document.getElementById('btn-save').addEventListener('click', () => window.Game.saveGame());
     document.getElementById('btn-quit').addEventListener('click', () => location.reload());
@@ -655,21 +606,6 @@
     document.getElementById('btn-settings-back').addEventListener('click', () => {
         document.getElementById('settings-menu').classList.add('hidden');
         document.getElementById('start-screen').classList.remove('hidden');
-    });
-
-    // Volume Sliders
-    const updateVolLabel = (id, val) => document.getElementById(id).innerText = Math.round(val * 100) + '%';
-    
-    document.getElementById('vol-master').addEventListener('input', (e) => {
-        const val = e.target.value / 100;
-        window.SoundManager.setMaster(val);
-        updateVolLabel('val-master', val);
-    });
-
-    document.getElementById('vol-sfx').addEventListener('input', (e) => {
-        const val = e.target.value / 100;
-        window.SoundManager.setSfx(val);
-        updateVolLabel('val-sfx', val);
     });
 
 </script>
@@ -694,7 +630,7 @@ const COLORS = {
     platform: '#1a1a2e',
     platformBorder: '#3d3d5c',
     player: '#f0f0f0',
-    otherPlayer: '#d0d0f0', 
+    otherPlayer: '#d0d0f0',
     cloak: '#2c3e50',
     enemy: '#d35400',
     boss: '#c0392b',
@@ -702,70 +638,27 @@ const COLORS = {
     hazard: '#7f8c8d'
 };
 
-// --- AUDIO SYSTEM ---
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-const masterGain = audioCtx.createGain();
-masterGain.connect(audioCtx.destination);
-
-const delayNode = audioCtx.createDelay();
-delayNode.delayTime.value = 0.4;
-const feedbackNode = audioCtx.createGain();
-feedbackNode.gain.value = 0.3;
-const delayFilter = audioCtx.createBiquadFilter();
-delayFilter.type = "lowpass";
-delayFilter.frequency.value = 1000;
-
-masterGain.connect(delayNode);
-delayNode.connect(delayFilter);
-delayFilter.connect(feedbackNode);
-feedbackNode.connect(delayNode);
-delayNode.connect(audioCtx.destination);
-
-const SoundManager = {
-    masterVol: 0.5,
-    sfxVol: 0.5,
-
-    setMaster: (v) => SoundManager.masterVol = v,
-    setSfx: (v) => SoundManager.sfxVol = v,
-    
-    playTone: (freq, type, duration, vol = 0.1, slide = 0) => {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        if (slide !== 0) {
-            osc.frequency.exponentialRampToValueAtTime(freq + slide, audioCtx.currentTime + duration);
-        }
-        
-        // Calculate volume
-        const finalVol = vol * SoundManager.masterVol * SoundManager.sfxVol;
-
-        gain.gain.setValueAtTime(finalVol, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-        
-        osc.connect(masterGain); 
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
-    },
-
-    playJump: () => SoundManager.playTone(300, 'sine', 0.2, 0.1, -100),
-    playDash: () => SoundManager.playTone(150, 'sawtooth', 0.3, 0.1, -50),
-    playAttack: () => SoundManager.playTone(200, 'triangle', 0.1, 0.1, -50),
-    playHit: () => SoundManager.playTone(100, 'square', 0.2, 0.2, -50),
-    playHeal: () => SoundManager.playTone(400, 'sine', 1.0, 0.1, 50),
-    playStep: () => SoundManager.playTone(100, 'triangle', 0.05, 0.02, -50)
-};
-window.SoundManager = SoundManager;
-
 // --- INPUT HANDLING ---
 const Input = {
     keys: {},
     mouse: { x: 0, y: 0, left: false, right: false },
+    active: true,
+    
     init: () => {
-        window.addEventListener('keydown', e => Input.keys[e.code] = true);
+        window.addEventListener('keydown', e => {
+            if(Input.active) Input.keys[e.code] = true;
+            
+            // Toggle Chat
+            if(e.code === 'KeyT' && !document.getElementById('chat-container').style.display.includes('block')) {
+                Game.toggleChat(true);
+            }
+            // Send Chat
+            if(e.code === 'Enter' && document.getElementById('chat-container').style.display.includes('block')) {
+                Game.sendChat();
+            }
+        });
         window.addEventListener('keyup', e => Input.keys[e.code] = false);
+        
         window.addEventListener('mousedown', e => {
             if (e.button === 0) Input.mouse.left = true;
             if (e.button === 2) Input.mouse.right = true;
@@ -776,6 +669,9 @@ const Input = {
         });
         window.addEventListener('contextmenu', e => e.preventDefault());
     },
+    
+    reset: () => { Input.keys = {}; Input.mouse.left = false; Input.mouse.right = false; },
+    
     left: () => Input.keys['KeyA'] || Input.keys['ArrowLeft'],
     right: () => Input.keys['KeyD'] || Input.keys['ArrowRight'],
     up: () => Input.keys['KeyW'] || Input.keys['ArrowUp'],
@@ -840,7 +736,6 @@ class Player extends Entity {
         this.maxSoul = 100;
         this.facing = 1; 
         
-        // State
         this.grounded = false;
         this.dashing = false;
         this.dashTimer = 0;
@@ -853,10 +748,13 @@ class Player extends Entity {
         this.dead = false;
         this.recoil = 0;
         
-        // Animation
         this.animState = 0; 
         this.animTimer = 0;
         this.stretch = {x: 1, y: 1};
+        
+        // Chat
+        this.chatMessage = "";
+        this.chatTimer = 0;
     }
 
     respawn() {
@@ -877,7 +775,6 @@ class Player extends Entity {
         this.recoil = 10;
         this.vx = (this.x < srcX ? -1 : 1) * 8;
         this.vy = -5;
-        SoundManager.playHit();
         Game.camera.shake = 10;
         Game.updateHUD();
 
@@ -898,6 +795,7 @@ class Player extends Entity {
     update(map, enemies) {
         if (this.dead) return;
         this.animTimer++;
+        if (this.chatTimer > 0) this.chatTimer--;
         
         this.stretch.x += (1 - this.stretch.x) * 0.1;
         this.stretch.y += (1 - this.stretch.y) * 0.1;
@@ -916,7 +814,6 @@ class Player extends Entity {
                 this.health++;
                 this.healTimer = 0;
                 this.healing = false;
-                SoundManager.playHeal();
                 Game.updateHUD();
             }
         } else {
@@ -926,7 +823,7 @@ class Player extends Entity {
 
         if (this.recoil > 0) {
             this.recoil--;
-        } else if (!this.healing) {
+        } else if (!this.healing && Input.active) {
             if (Input.left()) { 
                 this.vx -= 1; 
                 this.facing = -1; 
@@ -946,12 +843,11 @@ class Player extends Entity {
             if (this.vx < -MOVE_SPEED) this.vx = -MOVE_SPEED;
         }
 
-        if (Input.jump() && !this.lastJumpKey) {
+        if (Input.jump() && !this.lastJumpKey && Input.active) {
             if (this.grounded) {
                 this.vy = -JUMP_FORCE;
                 this.stretch = {x: 0.7, y: 1.3};
                 this.grounded = false;
-                SoundManager.playJump();
                 this.lastJumpKey = true;
                 this.animState = 2;
                 
@@ -964,21 +860,19 @@ class Player extends Entity {
             if (this.vy < -3) this.vy *= 0.5;
         }
 
-        if (Input.dash() && !this.dashing && this.dashCooldown <= 0 && !this.healing) {
+        if (Input.dash() && !this.dashing && this.dashCooldown <= 0 && !this.healing && Input.active) {
             this.dashing = true;
             this.dashTimer = DASH_DURATION;
             this.dashCooldown = 40; 
             this.vx = this.facing * DASH_SPEED;
             this.vy = 0;
-            SoundManager.playDash();
             Game.camera.shake = 5;
         }
 
-        if (Input.attack() && !this.attacking && this.attackCooldown <= 0 && !this.healing) {
+        if (Input.attack() && !this.attacking && this.attackCooldown <= 0 && !this.healing && Input.active) {
             this.attacking = true;
             this.attackTimer = ATTACK_DURATION;
             this.attackCooldown = 25;
-            SoundManager.playAttack();
             
             const reach = 40;
             const hitX = this.facing === 1 ? this.x + this.w : this.x - reach;
@@ -1020,7 +914,7 @@ class Player extends Entity {
         this.y += this.vy;
         this.checkCollisions(map, 'y');
         
-        if (this.y > 2000) this.takeDamage(1, this.x + 100);
+        if (this.y > 4000) this.takeDamage(1, this.x + 100);
     }
 
     checkCollisions(map, axis) {
@@ -1063,16 +957,43 @@ class Player extends Entity {
     draw(ctx, camX, camY) {
         if (this.invulnerable > 0 && Math.floor(Date.now() / 50) % 2 === 0) return; 
         
-        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false);
+        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null);
     }
 }
 
-// Helper to draw any vessel (local or remote)
-function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote) {
+// Draw Vessel Function (Handles Skins and Chat)
+function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg) {
     const cx = x + w/2;
     const cy = y + h; 
 
     ctx.save();
+    
+    // Chat Bubble
+    if (chatMsg) {
+        ctx.font = '12px sans-serif';
+        const metrics = ctx.measureText(chatMsg);
+        const bw = Math.max(metrics.width + 10, 20);
+        const bh = 24;
+        const bx = cx - bw/2;
+        const by = y - bh - 10;
+        
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, 5);
+        ctx.fill();
+        
+        // Triangle
+        ctx.beginPath();
+        ctx.moveTo(cx, by + bh);
+        ctx.lineTo(cx - 5, by + bh + 5);
+        ctx.lineTo(cx + 5, by + bh + 5);
+        ctx.fill();
+
+        ctx.fillStyle = '#000';
+        ctx.textAlign = 'center';
+        ctx.fillText(chatMsg, cx, by + 16);
+    }
+
     ctx.translate(cx, cy);
     ctx.scale(facing * scaleX, scaleY);
     ctx.translate(-cx, -cy);
@@ -1088,17 +1009,13 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
     // Head
     ctx.fillStyle = isRemote ? COLORS.otherPlayer : COLORS.player;
     ctx.beginPath();
-    // Horns
     ctx.moveTo(cx - 8, y);
     ctx.lineTo(cx - 8, y - 12);
     ctx.lineTo(cx - 4, y);
-    
     ctx.moveTo(cx + 8, y);
     ctx.lineTo(cx + 8, y - 12);
     ctx.lineTo(cx + 4, y);
     ctx.fill();
-    
-    // Face
     ctx.beginPath();
     ctx.ellipse(cx, y + 10, 11, 12, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -1110,7 +1027,6 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
     ctx.ellipse(cx + 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Attack Swing
     if (attacking) {
         ctx.strokeStyle = 'white';
         ctx.lineWidth = 3;
@@ -1123,7 +1039,6 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
         ctx.globalAlpha = 1.0;
     }
 
-    // Healing Effects
     if (healing) {
         ctx.fillStyle = 'white';
         ctx.globalAlpha = 0.6;
@@ -1146,7 +1061,6 @@ class Enemy extends Entity {
     takeDamage(amount) {
         this.health -= amount;
         if (this.health <= 0) this.dead = true;
-        SoundManager.playHit();
     }
     update(map, player) {
         if (this.dead) return;
@@ -1201,23 +1115,47 @@ const Game = {
         window.addEventListener('resize', Game.resize);
         Input.init();
         
-        Game.map.push({x: -500, y: 500, w: 2000, h: 100});
+        // --- MASSIVE MAP GENERATION ---
+        Game.map = [];
+        // Ground Floor
+        Game.map.push({x: -1000, y: 500, w: 3000, h: 500});
+        
+        // Starting Steps
         Game.map.push({x: 300, y: 400, w: 200, h: 20});
         Game.map.push({x: 600, y: 300, w: 200, h: 20});
         Game.map.push({x: 100, y: 250, w: 100, h: 20});
-        Game.map.push({x: -500, y: -500, w: 100, h: 1000});
-        Game.map.push({x: 1400, y: -500, w: 100, h: 1000});
+        
+        // Left Tower
+        Game.map.push({x: -800, y: -2000, w: 100, h: 2500});
+        for(let i=0; i<10; i++) {
+            Game.map.push({x: -700 + (i%2)*150, y: 400 - i*120, w: 120, h: 20});
+        }
+        
+        // Right Tower
+        Game.map.push({x: 1800, y: -2000, w: 100, h: 2500});
+         for(let i=0; i<10; i++) {
+            Game.map.push({x: 1550 - (i%2)*150, y: 400 - i*120, w: 120, h: 20});
+        }
+        
+        // Upper Bridge
+        Game.map.push({x: -700, y: -500, w: 2500, h: 50});
+        
+        // Floating Islands
+        Game.map.push({x: 200, y: -700, w: 300, h: 40});
+        Game.map.push({x: 800, y: -800, w: 200, h: 40});
+        Game.map.push({x: -200, y: -900, w: 150, h: 30});
 
         Game.player = new Player(100, 300);
         Game.enemies.push(new Enemy(500, 470));
         Game.enemies.push(new Enemy(700, 270));
+        Game.enemies.push(new Enemy(-300, 470));
+        Game.enemies.push(new Enemy(0, -530));
     },
     
     startGame: () => {
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
         Game.running = true;
-        // Music Removed
         requestAnimationFrame(Game.loop);
     },
     
@@ -1231,6 +1169,33 @@ const Game = {
         const notif = document.getElementById('notification');
         notif.style.opacity = 1;
         setTimeout(() => notif.style.opacity = 0, 2000);
+    },
+    
+    toggleChat: (show) => {
+        const chat = document.getElementById('chat-container');
+        const input = document.getElementById('chat-input');
+        
+        if (show) {
+            chat.style.display = 'block';
+            input.value = '';
+            input.focus();
+            Input.active = false;
+            Input.reset();
+        } else {
+            chat.style.display = 'none';
+            Input.active = true;
+            Game.canvas.focus();
+        }
+    },
+    
+    sendChat: () => {
+        const input = document.getElementById('chat-input');
+        const msg = input.value.trim().substring(0, 30);
+        if (msg) {
+            Game.player.chatMessage = msg;
+            Game.player.chatTimer = 300; // 5 seconds
+        }
+        Game.toggleChat(false);
     },
     
     resize: () => {
@@ -1254,9 +1219,34 @@ const Game = {
             d.className = 'mask' + (i >= Game.player.health ? ' broken' : '');
             hpBar.appendChild(d);
         }
-        
         const soulPct = (Game.player.soul / Game.player.maxSoul) * 100;
         document.getElementById('soul-meter').style.height = soulPct + '%';
+    },
+
+    drawBackground: (ctx, cx, cy) => {
+        // Simple Parallax
+        const bgY = cy * 0.2;
+        const bgX = cx * 0.2;
+        
+        // Deep Background
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, Game.canvas.width, Game.canvas.height);
+
+        // Pillars
+        ctx.fillStyle = '#0a0a1a';
+        for(let i=-2; i<5; i++) {
+            ctx.fillRect((i*400) - (bgX%400), 0, 50, Game.canvas.height);
+        }
+
+        // Midground (Silhouettes)
+        ctx.fillStyle = '#111122';
+        for(let i=-5; i<20; i++) {
+             ctx.beginPath();
+             ctx.moveTo(i*200 - (cx*0.5), 1000 - (cy*0.5));
+             ctx.lineTo(i*200 + 100 - (cx*0.5), 200 - (cy*0.5)); // Spikes/Mts
+             ctx.lineTo(i*200 + 200 - (cx*0.5), 1000 - (cy*0.5));
+             ctx.fill();
+        }
     },
 
     loop: () => {
@@ -1270,9 +1260,7 @@ const Game = {
         const ctx = Game.ctx;
         
         Game.player.update(Game.map, Game.enemies);
-        
         Game.enemies.forEach(e => e.update(Game.map, Game.player));
-        
         Game.particles.forEach((p, i) => {
             p.update();
             if(p.markedForDeletion) Game.particles.splice(i, 1);
@@ -1285,8 +1273,6 @@ const Game = {
         let targetCamX = Game.player.x + Game.player.w/2 - Game.canvas.width/2;
         let targetCamY = Game.player.y + Game.player.h/2 - Game.canvas.height/2;
         
-        if (targetCamY > 100) targetCamY = 100; 
-
         Game.camera.x += (targetCamX - Game.camera.x) * 0.1;
         Game.camera.y += (targetCamY - Game.camera.y) * 0.1;
         
@@ -1301,8 +1287,8 @@ const Game = {
         const cx = Game.camera.x + shakeX;
         const cy = Game.camera.y + shakeY;
 
-        ctx.fillStyle = COLORS.bg;
-        ctx.fillRect(0, 0, Game.canvas.width, Game.canvas.height);
+        // Draw World
+        Game.drawBackground(ctx, cx, cy);
 
         ctx.fillStyle = COLORS.platform;
         ctx.strokeStyle = COLORS.platformBorder;
@@ -1312,15 +1298,16 @@ const Game = {
             ctx.strokeRect(rect.x - cx, rect.y - cy, rect.w, rect.h);
         }
 
+        // Remote Players
         if (window.Network && window.Network.remotePlayers) {
             Object.keys(window.Network.remotePlayers).forEach(key => {
                 const p = window.Network.remotePlayers[key];
+                // Check if message is expired
+                const msg = (p.mt && p.mt > 0) ? p.msg : null;
                 
-                // Draw Remote Vessel (Skin)
-                // Use default width/height of player: 24, 40
-                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true);
+                // FIXED: Use p.a (attacking boolean) instead of p.s
+                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg);
 
-                // Name Tag
                 ctx.fillStyle = '#aaa';
                 ctx.font = '10px Cinzel';
                 ctx.textAlign = 'center';
