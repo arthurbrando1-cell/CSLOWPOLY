@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -394,6 +394,10 @@
                         
                         <button class="btn" id="btn-join" style="flex: 1; margin: 0; padding: 0; font-size: 0.8rem; background: #333;">GO</button>
                     </div>
+                    <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <input type="checkbox" id="pvp-toggle" style="width: 16px; height: 16px; cursor: pointer;">
+                        <label for="pvp-toggle" style="color: #ccc; font-size: 0.8rem; cursor: pointer;">Enable PvP (Player vs Player)</label>
+                    </div>
                 </div>
 
                 <div style="width: 100%;">
@@ -513,7 +517,9 @@
         playerRef: null,
         roomRef: null,
         remotePlayers: {},
+        remoteStates: {}, // To track previous frame state for edge detection
         connected: false,
+        pvpEnabled: false,
         lastUpdate: 0,
         currentRoom: null,
         
@@ -590,7 +596,8 @@
                 
                 if (!maxPlayers) {
                     maxPlayers = parseInt(capacity) || 4;
-                    await update(child(roomRef, 'settings'), { maxPlayers: maxPlayers });
+                    const pvp = document.getElementById('pvp-toggle').checked;
+                    await update(child(roomRef, 'settings'), { maxPlayers: maxPlayers, pvp: pvp });
                 }
                 
                 const currentCount = Object.keys(players).length;
@@ -620,13 +627,19 @@
                       remove(Network.playerRef);
                 });
 
+                // Listen for PvP setting
+                onValue(child(ref(Network.db, `hk_multiplayer/rooms/${roomCode}`), 'settings/pvp'), (snapshot) => {
+                     Network.pvpEnabled = snapshot.val() || false;
+                     // Visual feedback for PvP mode could go here
+                });
+
                 onValue(Network.roomRef, (snapshot) => {
                     const data = snapshot.val() || {};
                     delete data[Network.playerId];
                     Network.remotePlayers = data;
                     
                     const count = Object.keys(data).length + 1;
-                    document.getElementById('player-count').innerText = `${count}/${maxPlayers} Online`;
+                    document.getElementById('player-count').innerText = `${count}/${maxPlayers} Online` + (Network.pvpEnabled ? " [PvP]" : "");
                     document.getElementById('net-dot').classList.add('connected');
                     document.getElementById('server-id').innerText = `Room: ${roomCode}`;
                     document.getElementById('server-id').style.display = 'block';
@@ -829,19 +842,19 @@ class Particle extends Entity {
 }
 
 class Fireball extends Entity {
-    constructor(x, y, dir) {
+    constructor(x, y, dir, isHostile = false) {
         super(x, y, 30, 20);
         this.dir = dir;
-        this.vx = dir * 12; // Fast speed
-        this.life = 60; // 1 second approx
+        this.vx = dir * 12; 
+        this.life = 60; 
+        this.isHostile = isHostile;
     }
     update(map, enemies) {
         this.x += this.vx;
         this.life--;
         
-        // Spawn particles
         if (this.life % 2 === 0) {
-            Game.particles.push(new Particle(this.x + (this.dir===1?0:this.w), this.y + this.h/2, 'rgba(255,255,255,0.7)', -this.dir * 2, (Math.random()-0.5)*2, 10));
+            Game.particles.push(new Particle(this.x + (this.dir===1?0:this.w), this.y + this.h/2, this.isHostile ? 'rgba(255,100,100,0.7)' : 'rgba(255,255,255,0.7)', -this.dir * 2, (Math.random()-0.5)*2, 10));
         }
 
         if (this.life <= 0) {
@@ -858,31 +871,39 @@ class Fireball extends Entity {
             }
         }
 
-        // Enemy Collision
-        enemies.forEach(e => {
-            if (!e.dead && this.checkCollision(e)) {
-                e.takeDamage(2); // Strong damage
+        if (this.isHostile) {
+            // PvP: Check collision with local player
+            if (Game.player && !Game.player.dead && this.checkCollision(Game.player)) {
+                Game.player.takeDamage(1, this.x);
                 this.markedForDeletion = true;
                 this.explode();
             }
-        });
+        } else {
+            // Friendly: Check enemies
+            enemies.forEach(e => {
+                if (!e.dead && this.checkCollision(e)) {
+                    e.takeDamage(2); 
+                    this.markedForDeletion = true;
+                    this.explode();
+                }
+            });
+        }
     }
 
     explode() {
         for(let i=0; i<10; i++) {
-             Game.particles.push(new Particle(this.x + this.w/2, this.y + this.h/2, 'white', (Math.random()-0.5)*10, (Math.random()-0.5)*10, 20));
+             Game.particles.push(new Particle(this.x + this.w/2, this.y + this.h/2, this.isHostile ? 'red' : 'white', (Math.random()-0.5)*10, (Math.random()-0.5)*10, 20));
         }
     }
 
     draw(ctx, camX, camY) {
-        ctx.fillStyle = 'white';
+        ctx.fillStyle = this.isHostile ? '#ff4444' : 'white';
         ctx.beginPath();
         const cx = this.x - camX + this.w/2;
         const cy = this.y - camY + this.h/2;
         ctx.ellipse(cx, cy, 15, 10, 0, 0, Math.PI*2);
         ctx.fill();
-        // Inner core
-        ctx.fillStyle = 'rgba(200,200,255,0.8)';
+        ctx.fillStyle = this.isHostile ? 'rgba(255,0,0,0.8)' : 'rgba(200,200,255,0.8)';
         ctx.beginPath();
         ctx.ellipse(cx, cy, 10, 6, 0, 0, Math.PI*2);
         ctx.fill();
@@ -1550,16 +1571,37 @@ const Game = {
         if (window.Network && window.Network.remotePlayers) {
             Object.keys(window.Network.remotePlayers).forEach(key => {
                 const p = window.Network.remotePlayers[key];
-                const msg = (p.mt && p.mt > 0) ? p.msg : null;
+                const lastState = window.Network.remoteStates[key] || {};
                 
-                // Spawn remote fireball visually if fb flag is set (crude but works for quick visual)
-                if (p.fb) {
-                     Game.particles.push(new Particle(p.x - cx + (p.f*10), p.y - cy + 20, 'rgba(200,200,255,0.8)', p.f*5, 0, 10));
+                // Detect Fireball Rising Edge
+                if (p.fb && !lastState.fb) {
+                    if (window.Network.pvpEnabled) {
+                        const fbX = (p.f || 1) === 1 ? p.x + 29 : p.x - 35;
+                        Game.fireballs.push(new Fireball(fbX, p.y + 10, p.f || 1, true));
+                    } else {
+                        // Visual only
+                        for(let i=0; i<5; i++) Game.particles.push(new Particle(p.x + 12, p.y + 20, 'rgba(200,200,255,0.8)', (p.f||1)*5, 0, 10));
+                    }
                 }
+                
+                // PvP Melee
+                if (window.Network.pvpEnabled && p.a) {
+                    const reach = 40;
+                    const hitX = (p.f || 1) === 1 ? p.x + 24 : p.x - reach;
+                    const hitY = p.y + 10;
+                    
+                    if (Game.player.x < hitX + reach && Game.player.x + Game.player.w > hitX &&
+                        Game.player.y < hitY + 20 && Game.player.y + Game.player.h > hitY) {
+                         Game.player.takeDamage(1, p.x);
+                    }
+                }
+                
+                window.Network.remoteStates[key] = p;
 
+                const msg = (p.mt && p.mt > 0) ? p.msg : null;
                 drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg, p.cc, p.ms);
 
-                ctx.fillStyle = '#aaa';
+                ctx.fillStyle = window.Network.pvpEnabled ? '#ffaaaa' : '#aaa';
                 ctx.font = '10px Cinzel';
                 ctx.textAlign = 'center';
                 ctx.fillText(p.n || 'Vessel', p.x - cx + 12, p.y - cy - 10);
