@@ -510,7 +510,7 @@
                     <span>Mask</span>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <button class="cust-arrow" id="mask-prev"><</button>
-                        <span id="mask-display" style="width: 60px; text-align: center; font-size: 0.7rem;">DEFAULT</span>
+                        <span id="mask-display" style="width: 80px; text-align: center; font-size: 0.7rem;">DEFAULT</span>
                         <button class="cust-arrow" id="mask-next">></button>
                     </div>
                 </div>
@@ -520,8 +520,18 @@
                     <span>Outfit</span>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <button class="cust-arrow" id="outfit-prev"><</button>
-                        <span id="outfit-display" style="width: 60px; text-align: center; font-size: 0.7rem;">CLOAK</span>
+                        <span id="outfit-display" style="width: 80px; text-align: center; font-size: 0.7rem;">CLOAK</span>
                         <button class="cust-arrow" id="outfit-next">></button>
+                    </div>
+                </div>
+
+                <!-- Accessory -->
+                <div class="custom-option">
+                    <span>Accessory</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="cust-arrow" id="acc-prev"><</button>
+                        <span id="acc-display" style="width: 80px; text-align: center; font-size: 0.7rem;">NONE</span>
+                        <button class="cust-arrow" id="acc-next">></button>
                     </div>
                 </div>
 
@@ -557,6 +567,8 @@
                         <div class="color-swatch" data-color="#7f8c8d" style="background: #7f8c8d;"></div>
                         <div class="color-swatch" data-color="#111111" style="background: #111111; border: 1px solid #555;"></div>
                         <div class="color-swatch" data-color="#f1c40f" style="background: #f1c40f;"></div>
+                        <div class="color-swatch" data-color="#ffffff" style="background: #ffffff;"></div>
+                        <div class="color-swatch" data-color="#e91e63" style="background: #e91e63;"></div>
                     </div>
                 </div>
                 
@@ -803,6 +815,7 @@
                     ms: playerData.maskStyle,
                     sw: playerData.swordStyle,
                     os: playerData.outfitStyle,
+                    as: playerData.accessoryStyle,
                     hs: playerData.heightScale,
                     sc: playerData.score,
                     ts: now,
@@ -1097,6 +1110,7 @@ class Player extends Entity {
         this.maskStyle = 0; 
         this.swordStyle = 0; 
         this.outfitStyle = 0; // 0: Cloak, 1: Armor, 2: Robe
+        this.accessoryStyle = 0; // 0: None
         this.heightScale = 1.0;
         this.score = 0;
     }
@@ -1372,20 +1386,17 @@ class Player extends Entity {
     draw(ctx, camX, camY) {
         if (this.invulnerable > 0 && Math.floor(Date.now() / 50) % 2 === 0) return; 
         
-        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null, this.cloakColor, this.maskStyle, this.swordStyle, this.outfitStyle, this.heightScale);
+        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null, this.cloakColor, this.maskStyle, this.swordStyle, this.outfitStyle, this.heightScale, this.accessoryStyle);
     }
 }
 
 // Draw Vessel Function (Handles Skins and Chat)
-function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg, cloakColor, maskStyle, swordStyle, outfitStyle, heightScale) {
+function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg, cloakColor, maskStyle, swordStyle, outfitStyle, heightScale, accessoryStyle) {
     const scale = heightScale || 1.0;
     const finalH = h * scale;
     const cx = x + w/2;
     const cy = y + h; // Pivot bottom
     
-    // Y Correction due to height scaling pivoting from center in scale, we want pivot at bottom
-    // We handle this by translating to bottom, scaling, then drawing up.
-
     ctx.save();
     
     // Chat Bubble
@@ -1395,20 +1406,17 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
         const bw = Math.max(metrics.width + 10, 20);
         const bh = 24;
         const bx = cx - bw/2;
-        const by = y - (finalH - h) - bh - 10; // Adjust for height
+        const by = y - (finalH - h) - bh - 10;
         
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.beginPath();
         ctx.roundRect(bx, by, bw, bh, 5);
         ctx.fill();
-        
-        // Triangle
         ctx.beginPath();
         ctx.moveTo(cx, by + bh);
         ctx.lineTo(cx - 5, by + bh + 5);
         ctx.lineTo(cx + 5, by + bh + 5);
         ctx.fill();
-
         ctx.fillStyle = '#000';
         ctx.textAlign = 'center';
         ctx.fillText(chatMsg, cx, by + 16);
@@ -1422,7 +1430,8 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
     ctx.fillStyle = cloakColor || COLORS.cloak;
     ctx.beginPath();
     const os = outfitStyle || 0;
-    
+    const as = accessoryStyle || 0;
+
     if (os === 0) { // Cloak
         ctx.moveTo(cx, y + 15);
         ctx.lineTo(cx - 12, y + h);
@@ -1444,6 +1453,26 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
         ctx.moveTo(cx, y + 10);
         ctx.lineTo(cx - 15, y + h);
         ctx.lineTo(cx + 15, y + h);
+    } else if (os === 3) { // Grimm Style
+        ctx.moveTo(cx, y + 10);
+        ctx.lineTo(cx - 10, y + h);
+        ctx.lineTo(cx + 10, y + h);
+        // Collar
+        ctx.moveTo(cx - 12, y + 5);
+        ctx.lineTo(cx - 6, y + 15);
+        ctx.lineTo(cx - 14, y + 20);
+        ctx.moveTo(cx + 12, y + 5);
+        ctx.lineTo(cx + 6, y + 15);
+        ctx.lineTo(cx + 14, y + 20);
+    } else if (os === 4) { // Tattered/Shade
+        ctx.moveTo(cx, y + 15);
+        ctx.lineTo(cx - 12, y + h - 5);
+        ctx.lineTo(cx - 8, y + h);
+        ctx.lineTo(cx - 4, y + h - 5);
+        ctx.lineTo(cx, y + h);
+        ctx.lineTo(cx + 4, y + h - 5);
+        ctx.lineTo(cx + 8, y + h);
+        ctx.lineTo(cx + 12, y + h - 5);
     }
     ctx.fill();
     
@@ -1456,8 +1485,28 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
         ctx.stroke();
     }
 
+    // Accessory (Behind Head)
+    if (as === 1) { // Scarf
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        ctx.moveTo(cx - 6, y + 12);
+        ctx.quadraticCurveTo(cx - 15, y + 15, cx - 18, y + 25); // Flowing left
+        ctx.lineTo(cx - 12, y + 25);
+        ctx.lineTo(cx - 4, y + 15);
+        ctx.fill();
+    } else if (as === 2) { // Backpack
+        ctx.fillStyle = '#795548';
+        ctx.beginPath();
+        ctx.roundRect(cx - 10, y + 20, 20, 15, 4);
+        ctx.fill();
+        ctx.fillStyle = '#5d4037';
+        ctx.beginPath();
+        ctx.rect(cx - 10, y + 25, 20, 2);
+        ctx.fill();
+    }
+
     // Head
-    ctx.fillStyle = isRemote ? COLORS.otherPlayer : COLORS.player;
+    ctx.fillStyle = (os === 4) ? '#111' : (isRemote ? COLORS.otherPlayer : COLORS.player);
     ctx.beginPath();
     
     const mStyle = maskStyle || 0;
@@ -1498,20 +1547,62 @@ function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing,
         ctx.lineTo(cx + 4, y - 5);
         ctx.lineTo(cx + 10, y - 15);
         ctx.lineTo(cx + 8, y - 2);
+    } else if (mStyle == 5) { // Bandana (Quirrel)
+        ctx.moveTo(cx - 10, y);
+        ctx.lineTo(cx - 10, y - 10);
+        ctx.quadraticCurveTo(cx, y - 5, cx + 10, y - 10);
+        ctx.lineTo(cx + 10, y);
+    } else if (mStyle == 6) { // Broken
+        ctx.moveTo(cx - 8, y);
+        ctx.lineTo(cx - 8, y - 12);
+        ctx.lineTo(cx - 4, y);
+        ctx.moveTo(cx + 8, y);
+        ctx.lineTo(cx + 8, y - 4); // Broken horn
+        ctx.lineTo(cx + 4, y);
+    } else if (mStyle == 7) { // Zote
+        ctx.moveTo(cx - 8, y);
+        ctx.lineTo(cx - 8, y - 15);
+        ctx.lineTo(cx - 4, y - 5);
+        ctx.lineTo(cx, y - 15);
+        ctx.lineTo(cx + 4, y - 5);
+        ctx.lineTo(cx + 8, y - 15);
+        ctx.lineTo(cx + 8, y);
     }
 
     ctx.fill();
 
     // Eyes
-    ctx.fillStyle = 'black';
+    ctx.fillStyle = (os === 4) ? 'white' : 'black'; // White eyes for Shade
     ctx.beginPath();
     if (mStyle == 3) { // Helmet Slit
         ctx.rect(cx - 6, y + 8, 12, 4);
+    } else if (mStyle == 7) { // Zote (Closed/Angry)
+        ctx.moveTo(cx - 6, y + 8);
+        ctx.lineTo(cx - 2, y + 10);
+        ctx.moveTo(cx + 6, y + 8);
+        ctx.lineTo(cx + 2, y + 10);
+        ctx.stroke();
+        // Mouth
+        ctx.beginPath();
+        ctx.rect(cx - 2, y + 14, 4, 2);
+        ctx.fill();
     } else {
         ctx.ellipse(cx - 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
         ctx.ellipse(cx + 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
     }
     ctx.fill();
+    
+    // Accessory (Face/Head)
+    if (as === 3) { // Flower
+        ctx.fillStyle = 'pink';
+        ctx.beginPath();
+        ctx.arc(cx + 8, y + 5, 4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(cx + 8, y + 5, 2, 0, Math.PI*2);
+        ctx.fill();
+    }
 
     if (attacking) {
         const sw = swordStyle || 0;
@@ -1688,7 +1779,7 @@ const Game = {
         });
         
         // Mask Names
-        const maskNames = ["DEFAULT", "HORNS", "POINTY", "HELMET", "CROWN"];
+        const maskNames = ["DEFAULT", "HORNS", "POINTY", "HELMET", "CROWN", "BANDANA", "BROKEN", "ZOTE"];
         Game.player.maskStyle = 0;
         document.getElementById('mask-next').addEventListener('click', () => {
             Game.player.maskStyle = (Game.player.maskStyle + 1) % maskNames.length;
@@ -1702,15 +1793,28 @@ const Game = {
         });
 
         // Outfit Names
-        const outfitNames = ["CLOAK", "ARMOR", "ROBE"];
+        const outfitNames = ["CLOAK", "ARMOR", "ROBE", "GRIMM", "SHADE"];
         document.getElementById('outfit-next').addEventListener('click', () => {
-            Game.player.outfitStyle = (Game.player.outfitStyle + 1) % 3;
+            Game.player.outfitStyle = (Game.player.outfitStyle + 1) % outfitNames.length;
             document.getElementById('outfit-display').innerText = outfitNames[Game.player.outfitStyle];
             Game.previewCustomization();
         });
         document.getElementById('outfit-prev').addEventListener('click', () => {
-            Game.player.outfitStyle = (Game.player.outfitStyle - 1 + 3) % 3;
+            Game.player.outfitStyle = (Game.player.outfitStyle - 1 + outfitNames.length) % outfitNames.length;
             document.getElementById('outfit-display').innerText = outfitNames[Game.player.outfitStyle];
+            Game.previewCustomization();
+        });
+
+        // Accessory Names
+        const accNames = ["NONE", "SCARF", "BACKPACK", "FLOWER"];
+        document.getElementById('acc-next').addEventListener('click', () => {
+            Game.player.accessoryStyle = (Game.player.accessoryStyle + 1) % accNames.length;
+            document.getElementById('acc-display').innerText = accNames[Game.player.accessoryStyle];
+            Game.previewCustomization();
+        });
+        document.getElementById('acc-prev').addEventListener('click', () => {
+            Game.player.accessoryStyle = (Game.player.accessoryStyle - 1 + accNames.length) % accNames.length;
+            document.getElementById('acc-display').innerText = accNames[Game.player.accessoryStyle];
             Game.previewCustomization();
         });
 
@@ -1779,7 +1883,8 @@ const Game = {
             Game.player.maskStyle, 
             Game.player.swordStyle,
             Game.player.outfitStyle,
-            Game.player.heightScale
+            Game.player.heightScale,
+            Game.player.accessoryStyle
         );
     },
 
@@ -2003,7 +2108,7 @@ const Game = {
                 window.Network.remoteStates[key] = p;
 
                 const msg = (p.mt && p.mt > 0) ? p.msg : null;
-                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg, p.cc, p.ms, p.sw, p.os, p.hs);
+                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg, p.cc, p.ms, p.sw, p.os, p.hs, p.as);
 
                 ctx.fillStyle = window.Network.pvpEnabled ? '#ffaaaa' : '#aaa';
                 ctx.font = '10px Cinzel';
