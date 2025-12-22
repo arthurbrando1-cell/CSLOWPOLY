@@ -781,22 +781,26 @@
                       remove(Network.playerRef);
                 });
 
-                // Listen for Room Settings (PvP, Rounds)
+                // Listen for Room Settings (PvP, Rounds, Level Index)
                 const settingsRef = child(ref(Network.db, `hk_multiplayer/rooms/${roomCode}`), 'settings');
                 onValue(settingsRef, (snapshot) => {
                      const s = snapshot.val() || {};
                      Network.pvpEnabled = s.pvp || false;
                      Network.maxRounds = s.rounds || 3;
                      
+                     // Sync Level/Mode
+                     const targetMode = s.mode || 'arena';
+                     const targetLevel = s.levelIndex || 0;
+
+                     // Only reload if mode changed OR level index changed significantly
+                     if (targetMode !== Game.currentMode || (targetMode === 'story' && targetLevel !== Game.currentLevelIndex)) {
+                         Game.loadLevel(targetMode, targetLevel);
+                     }
+                     
                      if(Network.pvpEnabled) {
                          document.getElementById('scoreboard').style.display = 'block';
                      } else {
                          document.getElementById('scoreboard').style.display = 'none';
-                     }
-                     
-                     // Load Map based on mode
-                     if (s.mode && s.mode !== Game.currentMode) {
-                         Game.loadLevel(s.mode);
                      }
                 });
 
@@ -1774,6 +1778,101 @@ class Enemy extends Entity {
     }
 }
 
+class Boss extends Enemy {
+    constructor(x, y) {
+        super(x, y);
+        this.w = 60; this.h = 80;
+        this.health = 40;
+        this.maxHealth = 40;
+        this.attackTimer = 0;
+        this.phase = 0;
+    }
+    update(map, player) {
+        if(this.dead) return;
+        this.attackTimer++;
+        
+        // Simple Boss AI
+        if (this.attackTimer > 100) {
+            // Jump Attack
+            this.vy = -15;
+            this.vx = (player.x < this.x ? -1 : 1) * 8;
+            this.attackTimer = 0;
+        }
+        
+        this.vy += GRAVITY;
+        this.x += this.vx;
+        this.y += this.vy;
+        
+        // Floor Collision
+        for (const rect of map) {
+            if (this.x < rect.x + rect.w && this.x + this.w > rect.x && 
+                this.y < rect.y + rect.h && this.y + this.h > rect.y) {
+                 if (this.vy > 0) {
+                     this.y = rect.y - this.h;
+                     this.vy = 0;
+                     this.vx = 0;
+                     // Shockwave
+                     Game.camera.shake = 10;
+                 }
+            }
+        }
+        
+        if(this.checkCollision(player)) {
+            player.takeDamage(1, this.x);
+        }
+    }
+    draw(ctx, camX, camY) {
+        if(this.dead) return;
+        // Boss Body
+        ctx.fillStyle = '#800';
+        ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
+        // Eyes
+        ctx.fillStyle = '#f00';
+        ctx.beginPath();
+        ctx.arc(this.x - camX + 20, this.y - camY + 20, 5, 0, Math.PI*2);
+        ctx.arc(this.x - camX + 40, this.y - camY + 20, 5, 0, Math.PI*2);
+        ctx.fill();
+        // Health Bar
+        ctx.fillStyle = 'black';
+        ctx.fillRect(this.x - camX, this.y - camY - 20, this.w, 10);
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x - camX, this.y - camY - 20, this.w * (this.health/this.maxHealth), 10);
+    }
+}
+
+class Key extends Entity {
+    constructor(x, y) { super(x, y, 20, 20); this.float = 0; }
+    update() { this.float += 0.1; }
+    draw(ctx, camX, camY) {
+        if(this.markedForDeletion) return;
+        const fy = Math.sin(this.float) * 5;
+        ctx.fillStyle = 'gold';
+        ctx.beginPath();
+        ctx.arc(this.x - camX + 10, this.y - camY + 10 + fy, 8, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.font = '10px serif';
+        ctx.fillText("KEY", this.x - camX + 2, this.y - camY + 14 + fy);
+    }
+}
+
+class Gate extends Entity {
+    constructor(x, y) { super(x, y, 20, 150); this.open = false; }
+    update() {} // Static
+    draw(ctx, camX, camY) {
+        if(this.open) return;
+        ctx.fillStyle = '#444';
+        ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
+        ctx.fillStyle = '#222';
+        ctx.fillRect(this.x - camX + 5, this.y - camY + 5, 10, this.h - 10);
+        // Lock Icon
+        ctx.fillStyle = 'gold';
+        ctx.beginPath();
+        ctx.arc(this.x - camX + 10, this.y - camY + this.h/2, 6, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
+
 // --- GAME CONTROLLER ---
 const Game = {
     canvas: document.getElementById('gameCanvas'),
@@ -1792,7 +1891,8 @@ const Game = {
         Input.init();
         
         Game.player = new Player(100, 300);
-        Game.loadLevel('arena'); // Default load
+        // Map loading is now handled by Network or manual start
+        // Game.loadLevel('arena'); 
 
         // Init Customization UI
         const colors = document.querySelectorAll('.color-swatch');
@@ -1891,79 +1991,151 @@ const Game = {
         document.getElementById('chat-send-btn').addEventListener('click', Game.sendChat);
     },
     
-    loadLevel: (mode) => {
+    items: [],
+    gates: [],
+    currentLevelIndex: 0,
+    
+    // --- LEVEL DATA ---
+    levels: [
+        // LEVEL 1: FORGOTTEN CROSSROADS
+        {
+            name: "Forgotten Crossroads",
+            color: "#0f0f16",
+            start: {x: 0, y: 400},
+            build: (g) => {
+                // Ground
+                g.map.push({x: -200, y: 500, w: 2000, h: 200});
+                g.map.push({x: -200, y: -500, w: 50, h: 1000}); // Left Wall
+                
+                // Platforms
+                g.map.push({x: 400, y: 350, w: 200, h: 20});
+                g.map.push({x: 700, y: 250, w: 200, h: 20});
+                g.map.push({x: 1000, y: 150, w: 400, h: 20});
+                
+                // Gate Wall
+                g.map.push({x: 1600, y: -500, w: 50, h: 1000}); // Right Wall (Blocked)
+                
+                // Key Item
+                g.items.push(new Key(1200, 100)); // On top platform
+                
+                // Gate
+                g.gates.push(new Gate(1600, 300));
+                
+                // Enemies
+                g.enemies.push(new Enemy(600, 470));
+                g.enemies.push(new Enemy(900, 470));
+                g.enemies.push(new Enemy(1100, 120));
+                
+                // Exit Zone
+                g.exit = {x: 1700, y: 400, w: 100, h: 100};
+            }
+        },
+        // LEVEL 2: CITY OF TEARS
+        {
+            name: "City of Tears",
+            color: "#0a1a2a", // Blue theme
+            start: {x: 0, y: 400},
+            build: (g) => {
+                g.map.push({x: -200, y: 500, w: 500, h: 500}); // Start Floor
+                g.map.push({x: -200, y: -500, w: 50, h: 1000}); // Left Wall
+                
+                // Gap
+                g.map.push({x: 600, y: 400, w: 200, h: 20});
+                g.map.push({x: 900, y: 300, w: 200, h: 20});
+                g.map.push({x: 1200, y: 500, w: 1000, h: 200}); // Main City Floor
+                
+                // Buildings
+                g.map.push({x: 1400, y: 350, w: 100, h: 150}); // Building 1
+                g.map.push({x: 1700, y: 200, w: 100, h: 300}); // Building 2
+                
+                // Upper path
+                g.map.push({x: 1900, y: 100, w: 300, h: 20});
+                
+                // Gate Check
+                g.gates.push(new Gate(2300, 300)); // Gate blocking right
+                g.map.push({x: 2300, y: -500, w: 50, h: 800}); // Wall above gate
+                
+                // Key (Hidden below)
+                g.items.push(new Key(1720, 470)); // Between buildings
+                
+                // Enemies
+                g.enemies.push(new Enemy(1300, 470));
+                g.enemies.push(new Enemy(2000, 70)); // High enemy
+                g.enemies.push(new Enemy(1500, 470)); // Ground patrol
+                
+                g.exit = {x: 2400, y: 400, w: 100, h: 100};
+            }
+        },
+        // LEVEL 3: NIGHTMARE REALM (BOSS)
+        {
+            name: "Nightmare Realm",
+            color: "#2a0a0a", // Red theme
+            start: {x: 100, y: 400},
+            build: (g) => {
+                g.map.push({x: -200, y: 500, w: 1400, h: 200}); // Arena Floor
+                g.map.push({x: -200, y: -500, w: 50, h: 1000}); // Left Wall
+                g.map.push({x: 1200, y: -500, w: 50, h: 1000}); // Right Wall
+                
+                // Platforms
+                g.map.push({x: 200, y: 300, w: 150, h: 20});
+                g.map.push({x: 650, y: 300, w: 150, h: 20});
+                
+                // BOSS
+                const boss = new Boss(800, 350);
+                g.enemies.push(boss);
+                
+                // Exit appears on win? No, just end screen.
+            }
+        }
+    ],
+
+    loadLevel: (mode, levelIndex = 0) => {
         Game.currentMode = mode;
+        Game.currentLevelIndex = levelIndex;
         Game.map = [];
         Game.enemies = [];
         Game.fireballs = [];
         Game.particles = [];
+        Game.items = [];
+        Game.gates = [];
+        Game.player.vx = 0; Game.player.vy = 0;
+        Game.player.hasKey = false;
         
+        Game.sceneTransition();
+
         if (mode === 'story') {
-            console.log("Loading Story Mode...");
-            // --- STORY MODE MAP ---
-            // 1. Starting Village Area
-            Game.map.push({x: -500, y: 500, w: 1500, h: 500}); // Ground
-            Game.map.push({x: -500, y: -1000, w: 100, h: 1500}); // Left Wall
+            console.log(`Loading Story Level ${levelIndex}...`);
+            const lvl = Game.levels[levelIndex];
+            if(!lvl) return; // End of game?
             
-            // 2. Platforming Section
-            Game.map.push({x: 1200, y: 400, w: 200, h: 20});
-            Game.map.push({x: 1500, y: 300, w: 200, h: 20});
-            Game.map.push({x: 1900, y: 300, w: 500, h: 50}); // Mid Platform
+            COLORS.bg = lvl.color; // Set Theme
+            Game.player.x = lvl.start.x;
+            Game.player.y = lvl.start.y;
             
-            // 3. Bridge
-            Game.map.push({x: 2400, y: 300, w: 200, h: 20});
-            Game.map.push({x: 2700, y: 200, w: 200, h: 20});
-            Game.map.push({x: 3000, y: 500, w: 2000, h: 500}); // Lower Pit Area
+            lvl.build(Game);
             
-            // 4. Tower Climb
-            for(let i=0; i<8; i++) {
-                Game.map.push({x: 3500 + (i%2)*200, y: 400 - i*150, w: 150, h: 20});
-            }
-            
-            // 5. Boss Arena
-            Game.map.push({x: 3800, y: -800, w: 1500, h: 50}); // Boss Floor
-            Game.map.push({x: 3800, y: -1200, w: 50, h: 400}); // Wall Left
-            Game.map.push({x: 5300, y: -1200, w: 50, h: 400}); // Wall Right
-            
-            // Enemies
-            Game.enemies.push(new Enemy(800, 470));
-            Game.enemies.push(new Enemy(2000, 270));
-            Game.enemies.push(new Enemy(3200, 470));
-            Game.enemies.push(new Enemy(3400, 470));
-            
-            // Boss (Visual)
-            Game.enemies.push(new Enemy(4500, -830));
-            const boss = Game.enemies[Game.enemies.length-1];
-            boss.w = 60; boss.h = 60; boss.health = 20; // Tougher
-            
-            Game.player.x = 0;
-            Game.player.y = 400;
-            
+            // Notification
+            const notif = document.getElementById('notification');
+            notif.innerText = lvl.name;
+            notif.style.opacity = 1;
+            setTimeout(() => notif.style.opacity = 0, 3000);
+
         } else {
             console.log("Loading Arena Mode...");
+            COLORS.bg = "#0f0f16";
             // --- ARENA MAP (Default) ---
-            // Main Floor
             Game.map.push({x: -800, y: 500, w: 1600, h: 200});
-            // Walls
             Game.map.push({x: -800, y: -500, w: 50, h: 1000});
             Game.map.push({x: 750, y: -500, w: 50, h: 1000});
-            // Ceiling
             Game.map.push({x: -800, y: -500, w: 1600, h: 50});
             
-            // Platforms
             Game.map.push({x: -200, y: 350, w: 400, h: 20});
             Game.map.push({x: -500, y: 200, w: 200, h: 20});
             Game.map.push({x: 300, y: 200, w: 200, h: 20});
             Game.map.push({x: -100, y: 50, w: 200, h: 20});
             
-            Game.enemies.push(new Enemy(0, 470));
-            
-            Game.player.x = 0;
-            Game.player.y = 400;
+            Game.player.x = 0; Game.player.y = 400;
         }
-        
-        Game.player.vx = 0;
-        Game.player.vy = 0;
     },
 
     previewCustomization: () => {
@@ -2104,6 +2276,80 @@ const Game = {
         Game.player.update(Game.map, Game.enemies);
         Game.enemies.forEach(e => e.update(Game.map, Game.player));
         
+        // Item Logic (Keys)
+        Game.items.forEach(i => {
+            i.update();
+            if (!i.markedForDeletion && Game.player.checkCollision(i)) {
+                i.markedForDeletion = true;
+                Game.player.hasKey = true;
+                // Visual
+                for(let k=0; k<10; k++) Game.particles.push(new Particle(i.x + 10, i.y + 10, 'gold', 0, -2, 30));
+                // Notif
+                const n = document.getElementById('notification');
+                n.innerText = "Key Acquired";
+                n.style.opacity = 1;
+                setTimeout(() => n.style.opacity = 0, 2000);
+            }
+        });
+
+        // Gate Logic
+        Game.gates.forEach(g => {
+            if(!g.open) {
+                // Collision as a wall
+                if (Game.player.checkCollision(g)) {
+                    // Solid collision logic
+                    if (Game.player.x < g.x) Game.player.x = g.x - Game.player.w;
+                    else Game.player.x = g.x + g.w;
+                    
+                    // Unlock check
+                    if (Game.player.hasKey) {
+                        g.open = true;
+                        Game.player.hasKey = false; // Consume key
+                        // Visual
+                        for(let k=0; k<20; k++) Game.particles.push(new Particle(g.x + 10, g.y + g.h/2, '#444', (Math.random()-0.5)*5, (Math.random()-0.5)*5, 40));
+                    } else {
+                         const n = document.getElementById('notification');
+                         n.innerText = "Locked - Need Key";
+                         n.style.opacity = 1;
+                         setTimeout(() => n.style.opacity = 0, 1000);
+                    }
+                }
+            }
+        });
+
+        // Level Exit Logic (Story Mode)
+        if (Game.currentMode === 'story' && Game.exit) {
+             // Hardcode check vs exit rect
+             const exit = Game.exit; // Set in level build
+             // Wait, Game.exit needs to be set in loadLevel logic or levels array
+             const lvl = Game.levels[Game.currentLevelIndex];
+             if (lvl && lvl.exit) {
+                 const ex = lvl.exit;
+                 if (Game.player.x < ex.x + ex.w && Game.player.x + Game.player.w > ex.x &&
+                     Game.player.y < ex.y + ex.h && Game.player.y + Game.player.h > ex.y) {
+                     
+                     // Trigger Next Level (Networked)
+                     if (window.Network && window.Network.connected && Network.roomRef) {
+                         const nextIdx = Game.currentLevelIndex + 1;
+                         if (Game.levels[nextIdx]) {
+                             // Update room settings to next level
+                             import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js").then(({update, child}) => {
+                                 update(child(ref(Network.db, `hk_multiplayer/rooms/${Network.currentRoom}`), 'settings'), {
+                                     levelIndex: nextIdx
+                                 });
+                             });
+                         } else {
+                             // Victory
+                             document.getElementById('winner-announce').innerText = "ADVENTURE COMPLETE";
+                             document.getElementById('winner-announce').style.opacity = 1;
+                         }
+                     }
+                     // Move player back to prevent trigger spam
+                     Game.player.x -= 50; 
+                 }
+             }
+        }
+
         Game.fireballs.forEach((f, i) => {
             f.update(Game.map, Game.enemies);
             if(f.markedForDeletion) Game.fireballs.splice(i, 1);
@@ -2217,6 +2463,8 @@ const Game = {
             });
         }
 
+        Game.gates.forEach(g => g.draw(ctx, cx, cy));
+        Game.items.forEach(i => i.draw(ctx, cx, cy));
         Game.enemies.forEach(e => e.draw(ctx, cx, cy));
 
         Game.fireballs.forEach(f => f.draw(ctx, cx, cy));
