@@ -1,2491 +1,770 @@
-<!DOCTYPE html>
-<html lang="en">
+🎮 Gamedevspace | Ultimate Edition - Corrigido
+Corrigi todos os problemas e adicionei os novos recursos:
+htmlDownloadCopy code<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hollow Knight Web Clone - Multiplayer</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamedevspace | Natal Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
-        .locked-icon {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            background: #d32f2f;
-            border-radius: 50%;
-            margin-right: 5px;
-            box-shadow: 0 0 5px red;
+        :root {
+            --primary: #ff2e40;
+            --primary-dark: #c41e2d;
+            --primary-glow: rgba(255, 46, 64, 0.5);
+            --secondary: #00ff9c;
+            --secondary-glow: rgba(0, 255, 156, 0.3);
+            --gold: #ffd700;
+            --bg-dark: #030306;
+            --bg-darker: #010102;
+            --bg-card: rgba(15, 15, 20, 0.8);
+            --bg-card-hover: rgba(25, 25, 35, 0.9);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-hover: rgba(255, 255, 255, 0.1);
+            --border: rgba(255, 255, 255, 0.1);
+            --border-active: rgba(255, 46, 64, 0.5);
+            --text-main: #ffffff;
+            --text-secondary: #e0e0e5;
+            --text-muted: #888899;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-lg: 24px;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 40px var(--primary-glow);
+            --ease: cubic-bezier(0.23, 1, 0.32, 1);
+            --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
-        
+
+        * {
+            box-sizing: border-box;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        *::-webkit-scrollbar { width: 8px; height: 8px; }
+        *::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        *::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+
         body {
             margin: 0;
-            overflow: hidden;
-            background-color: #0f0f16;
-            color: white;
-            font-family: 'Cinzel', serif;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-            cursor: crosshair;
-        }
-        
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-main);
+            background: var(--bg-dark);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        canvas {
-            display: block;
-            background-color: #0f0f16;
-            image-rendering: pixelated;
-        }
-
-        /* UI Overlay */
-        #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: 
+                radial-gradient(ellipse at 20% 0%, rgba(255, 46, 64, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 100%, rgba(0, 255, 156, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 215, 0, 0.05) 0%, transparent 70%);
             pointer-events: none;
+            z-index: 0;
         }
 
-        /* HUD */
-        #hud {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 10;
+        #snow-container { position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+        .snowflake {
+            position: absolute; top: -20px; color: #fff; opacity: 0; font-size: 1rem;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
+            animation: snowfall linear forwards; will-change: transform;
+        }
+        @keyframes snowfall {
+            0% { opacity: 0; transform: translateY(0) rotate(0deg) translateX(0); }
+            10% { opacity: 0.9; }
+            90% { opacity: 0.9; }
+            100% { opacity: 0; transform: translateY(100vh) rotate(360deg) translateX(50px); }
         }
 
-        #scoreboard {
-            position: absolute;
-            top: 60px;
-            right: 20px;
-            text-align: right;
-            font-family: 'Cinzel', serif;
-            display: none;
+        #loading {
+            position: fixed; inset: 0; background: var(--bg-dark); z-index: 10000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px;
+            transition: opacity 0.5s, visibility 0.5s;
         }
-        .score-row {
-            color: #fff;
-            font-size: 1rem;
-            margin-bottom: 5px;
-            text-shadow: 0 0 5px black;
+        #loading.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .loader-box { position: relative; width: 100px; height: 100px; }
+        .loader-ring {
+            position: absolute; inset: 0; border: 4px solid transparent;
+            border-radius: 50%; animation: spin 1.5s linear infinite;
         }
-        .winner-announce {
-            position: absolute;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 3rem;
-            color: gold;
-            text-shadow: 0 0 20px orange;
-            text-align: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s;
+        .loader-ring:nth-child(1) { border-top-color: var(--primary); }
+        .loader-ring:nth-child(2) { inset: 10px; border-right-color: var(--secondary); animation-delay: 0.2s; animation-direction: reverse; }
+        .loader-ring:nth-child(3) { inset: 20px; border-bottom-color: var(--gold); animation-delay: 0.4s; }
+        .loader-icon { position: absolute; inset: 35px; display: flex; align-items: center; justify-content: center; animation: pulse 1s ease-in-out infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+
+        .loader-text {
+            font-size: 1.2rem; font-weight: 600;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--gold));
+            background-size: 200% auto;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: shimmer 2s linear infinite;
+        }
+        @keyframes shimmer { 100% { background-position: 200% center; } }
+
+        /* Header */
+        header {
+            position: sticky; top: 0; z-index: 1000;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 3%; height: 70px;
+            background: rgba(3, 3, 6, 0.85); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
         }
 
-        .health-container {
-            display: flex;
-            gap: 5px;
+        .brand {
+            display: flex; align-items: center; gap: 12px;
+            font-weight: 900; font-size: 1.4rem; cursor: pointer;
+            transition: transform 0.3s var(--ease);
         }
+        .brand:hover { transform: scale(1.02); }
+        .brand-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+        .brand span { color: var(--primary); }
 
-        .mask {
-            width: 30px;
-            height: 35px;
-            background: #e0e0e0;
-            border: 2px solid #1a1a1a;
-            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-            transition: all 0.2s;
+        .header-center { flex: 1; max-width: 500px; margin: 0 30px; }
+        .search-container { position: relative; width: 100%; }
+        .search-bar {
+            width: 100%; padding: 12px 20px 12px 50px;
+            background: var(--glass); border: 1px solid var(--border);
+            border-radius: 99px; color: var(--text-main);
+            font-size: 0.95rem; font-family: inherit;
+            transition: all 0.3s var(--ease);
         }
-        .mask.broken {
-            background: #333;
-            border-color: #111;
-            opacity: 0.5;
-            transform: scale(0.8);
-        }
+        .search-bar:focus { background: var(--glass-hover); border-color: var(--primary); box-shadow: 0 0 20px var(--primary-glow); }
+        .search-bar::placeholder { color: var(--text-muted); }
+        .search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
 
-        .soul-container {
-            width: 60px;
-            height: 60px;
-            border: 3px solid #d4d4d4;
-            border-radius: 50%;
-            position: relative;
-            overflow: hidden;
-            background: #1a1a1a;
-        }
-
-        .soul-liquid {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 0%;
-            background: linear-gradient(to top, #fdfdfd, #a8a8a8);
-            transition: height 0.2s;
-            opacity: 0.8;
-            box-shadow: 0 0 15px white;
-        }
-
-        /* Online Status */
-        #online-status {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 0.8rem;
-            color: #aaa;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        #server-id {
-            display: none; 
-            color: #666; 
-            font-size: 0.7rem; 
-            margin-right: 5px;
-        }
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #444;
-        }
-        .status-dot.connected { background: #4caf50; box-shadow: 0 0 8px #4caf50; }
-
-        /* Menus */
-        .menu-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            pointer-events: auto;
-            z-index: 100;
-        }
-
-        .menu-title {
-            font-size: 4rem;
-            text-transform: uppercase;
-            letter-spacing: 5px;
-            margin-bottom: 2rem;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-            background: linear-gradient(to bottom, #fff, #999);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+        .nav-actions { display: flex; align-items: center; gap: 15px; }
 
         .btn {
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            color: #ddd;
-            padding: 15px 40px;
-            margin: 10px;
-            font-family: 'Cinzel', serif;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px 24px; border: none; border-radius: 99px;
+            font-family: inherit; font-weight: 600; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.3s var(--ease);
         }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff; box-shadow: 0 4px 20px var(--primary-glow);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 30px var(--primary-glow); }
+        .btn-secondary { background: var(--glass); color: var(--text-main); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--glass-hover); border-color: var(--text-muted); }
+        .btn-icon {
+            width: 42px; height: 42px; padding: 0;
+            background: var(--glass); border: 1px solid var(--border);
+            border-radius: 12px; color: var(--text-main); cursor: pointer;
+            transition: all 0.3s var(--ease);
+        }
+        .btn-icon:hover { background: var(--glass-hover); border-color: var(--primary); color: var(--primary); }
 
-        .btn:hover {
-            border-color: white;
-            color: white;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.05);
+        .user-menu { position: relative; }
+        .user-pill {
+            display: flex; align-items: center; gap: 12px;
+            padding: 6px 16px 6px 6px; background: var(--glass);
+            border: 1px solid var(--border); border-radius: 99px;
+            cursor: pointer; transition: all 0.3s var(--ease);
         }
+        .user-pill:hover { background: var(--glass-hover); border-color: var(--primary); }
+        .avatar {
+            width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: 2px solid transparent;
+        }
+        .user-info { display: flex; flex-direction: column; align-items: flex-start; }
+        .user-name { font-weight: 600; font-size: 0.9rem; line-height: 1.2; }
+        .user-role { font-size: 0.7rem; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 
-        /* Controls Visuals */
-        .controls-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px 40px;
-            background: rgba(0,0,0,0.6);
-            padding: 30px;
-            border-radius: 8px;
-            border: 1px solid #444;
-            margin-top: 20px;
-            text-align: left;
+        .dropdown {
+            position: absolute; top: calc(100% + 10px); right: 0;
+            min-width: 220px; background: var(--bg-card);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 8px; opacity: 0; visibility: hidden;
+            transform: translateY(-10px); transition: all 0.3s var(--ease);
+            box-shadow: var(--shadow);
         }
+        .dropdown.active { opacity: 1; visibility: visible; transform: translateY(0); }
+        .dropdown-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; border-radius: var(--radius-sm);
+            color: var(--text-secondary); cursor: pointer; transition: all 0.2s;
+        }
+        .dropdown-item:hover { background: var(--glass-hover); color: var(--text-main); }
+        .dropdown-item.danger:hover { background: rgba(255, 46, 64, 0.2); color: var(--primary); }
+        .dropdown-divider { height: 1px; background: var(--border); margin: 8px 0; }
 
-        .key-row { 
-            display: flex; 
-            align-items: center; 
-            font-size: 1rem; 
-            color: #ccc;
-            justify-content: space-between;
+        /* Hero */
+        .hero { position: relative; padding: 60px 5% 40px; text-align: center; overflow: hidden; }
+        .hero-content { position: relative; z-index: 2; }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 20px; background: var(--glass);
+            border: 1px solid var(--border); border-radius: 99px;
+            font-size: 0.85rem; color: var(--secondary); margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
         }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-        .key-cap { 
-            display: inline-flex; 
-            align-items: center;
-            justify-content: center;
-            background: #2a2a2a; 
-            border: 1px solid #555; 
-            border-bottom: 3px solid #111;
-            border-radius: 4px; 
-            padding: 4px 10px; 
-            margin-left: 8px;
-            font-family: sans-serif; 
-            font-weight: bold;
-            color: #fff; 
-            min-width: 20px;
-            font-size: 0.9rem;
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 900;
+            margin: 0 0 15px; line-height: 1.1;
         }
-        
-        .mouse-icon {
-            width: 24px;
-            height: 32px;
-            border: 2px solid #888;
-            border-radius: 12px;
-            position: relative;
-            margin-left: 8px;
+        .hero h1 .gradient {
+            background: linear-gradient(135deg, #fff 0%, var(--primary) 50%, var(--gold) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        .mouse-icon::before {
-            content: '';
-            position: absolute;
-            top: 4px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 2px;
-            height: 8px;
-            background: #888;
-        }
-        .mouse-l { background: linear-gradient(90deg, #555 50%, transparent 50%); }
-        .mouse-r { background: linear-gradient(90deg, transparent 50%, #555 50%); }
+        .hero p { font-size: 1.1rem; color: var(--text-muted); max-width: 500px; margin: 0 auto 30px; }
 
-        .hidden { display: none !important; }
-        
-        .notification {
-            position: absolute;
-            bottom: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.7);
-            padding: 10px 20px;
-            border: 1px solid #555;
-            opacity: 0;
-            transition: opacity 0.5s;
-            pointer-events: none;
-            color: white;
-            font-family: 'Cinzel', serif;
-        }
+        .hero-stats { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 2rem; font-weight: 800; color: var(--primary); }
+        .stat-label { font-size: 0.85rem; color: var(--text-muted); }
 
-        /* Chat Input */
-        #chat-container {
-            position: absolute;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 320px;
-            pointer-events: auto;
-            display: none;
+        /* Navigation Tabs */
+        .nav-tabs { display: flex; gap: 5px; padding: 0 5%; margin-bottom: 10px; overflow-x: auto; }
+        .nav-tab {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 24px; background: transparent; border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-muted); font-family: inherit;
+            font-size: 0.95rem; font-weight: 500; cursor: pointer;
+            transition: all 0.3s; white-space: nowrap;
         }
-        #chat-wrapper {
-            display: flex;
-            width: 100%;
-            background: rgba(0,0,0,0.8);
-            border: 1px solid #666;
-        }
-        #chat-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: white;
-            padding: 10px;
-            font-family: 'Cinzel', serif;
-            outline: none;
-        }
-        #chat-send-btn {
-            width: 40px;
-            background: #333;
-            border: none;
-            border-left: 1px solid #555;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        #chat-send-btn:hover {
-            background: #555;
-        }
+        .nav-tab:hover { color: var(--text-main); }
+        .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 
-        /* Server List Styles */
-        .server-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid transparent;
-            cursor: default;
-            transition: background 0.2s;
+        /* Filters */
+        .filters-section { padding: 20px 5%; display: flex; align-items: center; gap: 15px; overflow-x: auto; }
+        .filter-label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+        .filter-chips { display: flex; gap: 10px; }
+        .filter-chip {
+            display: flex; align-items: center; gap: 6px;
+            padding: 10px 20px; background: var(--glass);
+            border: 1px solid var(--border); border-radius: 99px;
+            color: var(--text-muted); font-size: 0.9rem;
+            cursor: pointer; transition: all 0.3s var(--ease); white-space: nowrap;
         }
-        .server-item:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: #444;
+        .filter-chip:hover { background: var(--glass-hover); color: var(--text-main); }
+        .filter-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 4px 15px var(--primary-glow); }
+
+        /* Main Content */
+        .main-content { padding: 20px 5% 60px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .section-title { font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+
+        .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+
+        .game-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); overflow: hidden;
+            cursor: pointer; transition: all 0.4s var(--ease); position: relative;
         }
-        .btn-join-small {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid #555;
-            color: #ddd;
-            padding: 4px 10px;
-            font-family: 'Cinzel', serif;
-            font-size: 0.7rem;
-            cursor: pointer;
+        .game-card:hover { transform: translateY(-8px); border-color: var(--primary); box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 30px var(--primary-glow); }
+
+        .card-image { position: relative; height: 180px; overflow: hidden; }
+        .card-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s var(--ease); }
+        .game-card:hover .card-image img { transform: scale(1.1); }
+
+        .card-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            opacity: 0; transition: opacity 0.3s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .game-card:hover .card-overlay { opacity: 1; }
+
+        .play-btn {
+            width: 60px; height: 60px; background: var(--primary);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            transform: scale(0); transition: transform 0.3s var(--ease-bounce);
+            box-shadow: 0 0 30px var(--primary-glow);
+        }
+        .game-card:hover .play-btn { transform: scale(1); }
+
+        .card-badges { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; }
+        .badge {
+            display: flex; align-items: center; gap: 4px;
+            padding: 6px 12px; background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px); border-radius: 8px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge-category { color: var(--secondary); }
+        .badge-new { background: var(--primary); color: #fff; }
+
+        .card-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; opacity: 0; transition: opacity 0.3s; }
+        .game-card:hover .card-actions { opacity: 1; }
+        .card-action-btn {
+            width: 36px; height: 36px; background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px); border: none; border-radius: 10px;
+            color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
             transition: all 0.2s;
         }
-        .btn-join-small:hover {
-            background: #fff;
-            color: #000;
+        .card-action-btn:hover { background: var(--primary); }
+        .card-action-btn.saved { background: var(--secondary); color: #000; }
+        .card-action-btn.delete:hover { background: #ff4444; }
+
+        .card-content { padding: 20px; }
+        .card-title {
+            font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;
+            display: -webkit-box; -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .card-meta { display: flex; align-items: center; justify-content: space-between; color: var(--text-muted); font-size: 0.85rem; }
+        .card-author { display: flex; align-items: center; gap: 8px; cursor: pointer; transition: color 0.2s; }
+        .card-author:hover { color: var(--primary); }
+        .card-author img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+        .card-stats { display: flex; gap: 15px; }
+        .card-stat { display: flex; align-items: center; gap: 4px; }
+
+        /* Empty State */
+        .empty-state { text-align: center; padding: 80px 20px; }
+        .empty-icon {
+            width: 100px; height: 100px; background: var(--glass);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px;
+        }
+        .empty-state h3 { font-size: 1.5rem; margin-bottom: 10px; }
+        .empty-state p { color: var(--text-muted); margin-bottom: 20px; }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px); z-index: 5000;
+            display: none; place-items: center; padding: 20px; overflow-y: auto;
+        }
+        .modal-overlay.active { display: grid; }
+
+        .modal {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); width: 100%; max-width: 500px;
+            max-height: 90vh; overflow-y: auto; animation: modalIn 0.3s var(--ease);
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
-        /* Customization Menu */
-        .custom-option {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            margin-bottom: 15px;
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 25px 30px; border-bottom: 1px solid var(--border);
         }
-        .color-swatch {
-            width: 30px;
-            height: 30px;
-            border: 2px solid #555;
-            cursor: pointer;
-            transition: transform 0.2s;
+        .modal-title { font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .modal-close {
+            width: 40px; height: 40px; background: var(--glass);
+            border: 1px solid var(--border); border-radius: 10px;
+            color: var(--text-muted); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
         }
-        .color-swatch:hover { transform: scale(1.1); border-color: white; }
-        .color-swatch.selected { border-color: #fff; box-shadow: 0 0 10px white; }
+        .modal-close:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
 
-        .cust-arrow {
-            background: transparent;
-            border: 1px solid #555;
-            color: white;
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
+        .modal-body { padding: 30px; }
+        .modal-footer { padding: 20px 30px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+        /* Form Elements */
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-secondary); }
+        .form-input {
+            width: 100%; padding: 14px 18px; background: var(--bg-darker);
+            border: 1px solid var(--border); border-radius: var(--radius-sm);
+            color: var(--text-main); font-family: inherit; font-size: 0.95rem;
+            transition: all 0.3s var(--ease);
         }
-        .cust-arrow:hover { background: #333; }
-        
-        input[type="file"]::file-selector-button {
-            border: 1px solid #555;
-            background: #222;
-            color: white;
-            padding: 5px 10px;
-            cursor: pointer;
-            font-family: 'Cinzel', serif;
+        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+        .form-input::placeholder { color: var(--text-muted); }
+        textarea.form-input { min-height: 100px; resize: vertical; }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23888899' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 15px center;
+            background-size: 18px; padding-right: 45px;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed var(--border); border-radius: var(--radius);
+            padding: 40px 20px; text-align: center; cursor: pointer;
+            transition: all 0.3s var(--ease); position: relative; overflow: hidden;
+        }
+        .upload-area:hover { border-color: var(--primary); background: rgba(255, 46, 64, 0.05); }
+        .upload-area.dragover { border-color: var(--secondary); background: rgba(0, 255, 156, 0.1); }
+        .upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .upload-icon {
+            width: 60px; height: 60px; background: var(--glass);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 15px; color: var(--primary);
+        }
+        .upload-text { color: var(--text-muted); font-size: 0.9rem; }
+        .upload-text span { color: var(--primary); font-weight: 600; }
+        .upload-formats { font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; }
+        .upload-preview { margin-top: 15px; }
+        .upload-preview img { max-width: 100%; max-height: 150px; border-radius: var(--radius-sm); }
+
+        /* Modal Tabs */
+        .modal-tabs { display: flex; gap: 5px; margin-bottom: 25px; background: var(--glass); padding: 5px; border-radius: var(--radius-sm); }
+        .modal-tab {
+            flex: 1; padding: 12px; background: transparent; border: none;
+            border-radius: 8px; color: var(--text-muted);
+            font-family: inherit; font-weight: 500; cursor: pointer; transition: all 0.2s;
+        }
+        .modal-tab.active { background: var(--primary); color: #fff; }
+
+        /* Profile Page */
+        .profile-page {
+            position: fixed; inset: 0; z-index: 4500;
+            background: var(--bg-dark); display: none;
+            flex-direction: column; overflow-y: auto;
+        }
+        .profile-page.active { display: flex; }
+
+        .profile-banner-section {
+            position: relative; height: 250px; overflow: hidden;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+        }
+        .profile-banner-section img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .profile-banner-gradient {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, var(--bg-dark), transparent 50%);
+        }
+        .profile-back-btn {
+            position: absolute; top: 20px; left: 20px;
+            width: 44px; height: 44px; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px); border: 1px solid var(--border);
+            border-radius: 12px; color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; z-index: 10;
+        }
+        .profile-back-btn:hover { background: var(--primary); border-color: var(--primary); }
+        .profile-edit-btn {
+            position: absolute; top: 20px; right: 20px;
+            padding: 10px 20px; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px); border: 1px solid var(--border);
+            border-radius: 99px; color: #fff; cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+            font-family: inherit; font-weight: 500; transition: all 0.2s;
+        }
+        .profile-edit-btn:hover { background: var(--primary); border-color: var(--primary); }
+
+        .profile-info-section {
+            position: relative; padding: 0 5%; margin-top: -80px; z-index: 10;
+        }
+        .profile-avatar-large {
+            width: 150px; height: 150px; border-radius: 50%;
+            border: 5px solid var(--bg-dark); object-fit: cover;
+            background: var(--glass);
+        }
+        .profile-details { margin-top: 20px; }
+        .profile-name-large { font-size: 2rem; font-weight: 800; margin-bottom: 5px; }
+        .profile-role-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; background: var(--glass);
+            border: 1px solid var(--border); border-radius: 99px;
+            font-size: 0.8rem; color: var(--secondary); margin-bottom: 15px;
+        }
+        .profile-bio { color: var(--text-muted); max-width: 600px; line-height: 1.6; }
+        .profile-stats-row { display: flex; gap: 30px; margin-top: 20px; }
+        .profile-stat-item { text-align: center; }
+        .profile-stat-value { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+        .profile-stat-label { font-size: 0.85rem; color: var(--text-muted); }
+
+        .profile-content { padding: 40px 5%; }
+        .profile-section-title {
+            font-size: 1.3rem; font-weight: 700; margin-bottom: 25px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        /* Edit Profile Modal */
+        .profile-header-edit { position: relative; margin: -30px -30px 20px; }
+        .profile-banner-edit {
+            height: 150px; position: relative; overflow: hidden;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        }
+        .profile-banner-edit img { width: 100%; height: 100%; object-fit: cover; }
+        .banner-upload-btn {
+            position: absolute; bottom: 10px; right: 10px;
+            width: 36px; height: 36px; background: rgba(0,0,0,0.6);
+            border: none; border-radius: 8px; color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .profile-avatar-edit-section {
+            display: flex; align-items: flex-end; gap: 20px;
+            padding: 0 30px; margin-top: -50px; position: relative;
+        }
+        .profile-avatar-edit-wrapper { position: relative; }
+        .profile-avatar-edit {
+            width: 100px; height: 100px; border-radius: 50%;
+            border: 4px solid var(--bg-card); object-fit: cover;
+            background: var(--glass);
+        }
+        .avatar-upload-btn {
+            position: absolute; bottom: 5px; right: 5px;
+            width: 32px; height: 32px; background: var(--primary);
+            border: none; border-radius: 50%; color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .profile-edit-info { flex: 1; padding-bottom: 15px; }
+        .profile-edit-name { font-size: 1.3rem; font-weight: 700; margin-bottom: 3px; }
+        .profile-edit-email { color: var(--text-muted); font-size: 0.9rem; }
+
+        /* Game Detail */
+        .game-detail {
+            position: fixed; inset: 0; z-index: 5500;
+            display: none; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
+        }
+        .game-detail.active { display: flex; }
+
+        .game-detail-main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .game-detail-header { position: relative; height: 350px; overflow: hidden; flex-shrink: 0; }
+        .game-detail-banner { width: 100%; height: 100%; object-fit: cover; }
+        .game-detail-gradient { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,1), transparent 60%); }
+
+        .game-detail-close {
+            position: absolute; top: 20px; left: 20px;
+            width: 44px; height: 44px; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px); border: 1px solid var(--border);
+            border-radius: 12px; color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .game-detail-close:hover { background: var(--primary); border-color: var(--primary); }
+
+        .game-detail-info { position: absolute; bottom: 30px; left: 30px; right: 30px; }
+        .game-detail-title { font-size: 2rem; font-weight: 800; margin-bottom: 10px; }
+        .game-detail-meta {
+            display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+            color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;
+        }
+        .game-detail-meta-item { display: flex; align-items: center; gap: 6px; }
+        .game-detail-author { cursor: pointer; transition: color 0.2s; }
+        .game-detail-author:hover { color: var(--primary); }
+        .game-detail-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+        .game-detail-content { flex: 1; padding: 30px; }
+        .game-description { color: var(--text-secondary); line-height: 1.7; margin-bottom: 30px; }
+
+        /* Reviews Sidebar */
+        .reviews-sidebar {
+            width: 400px; background: var(--bg-card);
+            border-left: 1px solid var(--border);
+            display: flex; flex-direction: column;
+        }
+        @media (max-width: 900px) {
+            .reviews-sidebar {
+                position: fixed; right: 0; top: 0; bottom: 0;
+                transform: translateX(100%); transition: transform 0.3s var(--ease); z-index: 10;
+            }
+            .reviews-sidebar.active { transform: translateX(0); }
+        }
+
+        .reviews-header {
+            padding: 25px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .reviews-title { font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .reviews-count { background: var(--glass); padding: 4px 12px; border-radius: 99px; font-size: 0.8rem; color: var(--text-muted); }
+
+        .reviews-list { flex: 1; overflow-y: auto; padding: 20px; }
+        .review-item {
+            background: var(--glass); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 18px; margin-bottom: 15px;
+        }
+        .review-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .review-author { display: flex; align-items: center; gap: 12px; }
+        .review-author img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .review-author-info h4 { font-size: 0.95rem; margin: 0 0 3px; }
+        .review-author-info span { font-size: 0.8rem; color: var(--text-muted); }
+        .review-rating { display: flex; gap: 3px; color: var(--gold); }
+        .review-text { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; }
+
+        .review-input { padding: 20px; border-top: 1px solid var(--border); }
+        .rating-select { display: flex; gap: 8px; margin-bottom: 15px; }
+        .rating-star {
+            width: 36px; height: 36px; background: var(--glass);
+            border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text-muted); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .rating-star:hover, .rating-star.active { background: var(--gold); border-color: var(--gold); color: #000; }
+
+        .review-textarea {
+            width: 100%; padding: 14px; background: var(--bg-darker);
+            border: 1px solid var(--border); border-radius: var(--radius-sm);
+            color: var(--text-main); font-family: inherit; font-size: 0.95rem;
+            min-height: 80px; resize: none; margin-bottom: 12px;
+        }
+        .review-textarea:focus { border-color: var(--primary); }
+
+        /* Game Player */
+        .game-player {
+            position: fixed; inset: 0; z-index: 6000;
+            background: #000; display: none; flex-direction: column;
+        }
+        .game-player.active { display: flex; }
+
+        .player-header {
+            height: 60px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            position: absolute; top: 0; left: 0; right: 0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; z-index: 10; opacity: 0; transition: opacity 0.3s;
+        }
+        .game-player:hover .player-header { opacity: 1; }
+        .player-title { flex: 1; text-align: center; font-weight: 600; }
+        .player-frame { flex: 1; border: none; width: 100%; }
+
+        /* Toast */
+        #toast-container {
+            position: fixed; bottom: 30px; right: 30px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            display: flex; align-items: center; gap: 12px;
+            padding: 16px 20px; background: var(--bg-card);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            box-shadow: var(--shadow); animation: toastIn 0.3s var(--ease);
+            min-width: 300px;
+        }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+
+        .toast-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .toast.success .toast-icon { background: rgba(0, 255, 156, 0.2); color: var(--secondary); }
+        .toast.error .toast-icon { background: rgba(255, 46, 64, 0.2); color: var(--primary); }
+        .toast-content { flex: 1; }
+        .toast-title { font-weight: 600; margin-bottom: 2px; }
+        .toast-message { font-size: 0.85rem; color: var(--text-muted); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-center { display: none; }
+            .nav-actions .btn-primary span { display: none; }
+            .nav-actions .btn-primary { padding: 10px 14px; }
+            .user-info { display: none; }
+            .user-pill { padding: 6px; }
+            .hero h1 { font-size: 2rem; }
+            .hero-stats { gap: 20px; }
+            .stat-value { font-size: 1.5rem; }
+            .games-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+            .modal { max-width: 100%; margin: 10px; }
+            .modal-body { padding: 20px; }
+            .profile-avatar-large { width: 100px; height: 100px; }
+            .profile-name-large { font-size: 1.5rem; }
         }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-
-    <div id="ui-layer">
-        <div id="online-status">
-            <span id="server-id">cs-low-poly</span>
-            <div id="net-dot" class="status-dot"></div>
-            <span id="player-count">Offline</span>
-        </div>
-
-        <div id="hud" class="hidden">
-            <div class="health-container" id="health-bar"></div>
-            <div class="soul-container">
-                <div class="soul-liquid" id="soul-meter"></div>
-            </div>
-            <!-- Chat Hint -->
-            <div style="font-size: 0.8rem; color: #666; margin-top: 10px;">Press 'T' to Chat</div>
-        </div>
-        
-        <div id="scoreboard">
-            <h3 style="margin: 0 0 10px 0; color: #aaa; border-bottom: 1px solid #444;">BATTLE</h3>
-            <div id="score-list"></div>
-        </div>
-        
-        <div id="winner-announce" class="winner-announce">VICTORY</div>
-
-        <div id="chat-container">
-            <div id="chat-wrapper">
-                <input type="text" id="chat-input" placeholder="Say something..." maxlength="30">
-                <button id="chat-send-btn">></button>
-            </div>
-        </div>
-
-        <div id="notification" class="notification">Saved Game</div>
-
-        <div id="start-screen" class="menu-screen">
-            <h1 class="menu-title">Vessel's Journey</h1>
-            <p style="color: #888; margin-top: -20px; margin-bottom: 30px;">Multiplayer Online</p>
-            
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 20px; width: 100%; max-width: 400px; background: rgba(0,0,0,0.8); padding: 20px; border: 1px solid #444; border-radius: 8px;">
-                
-                <div style="width: 100%; padding-bottom: 15px; border-bottom: 1px solid #333;">
-                    <label style="display: block; color: #fff; font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; text-align: center;">CREATE OR JOIN BY CODE</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="room-code-input" placeholder="Room Name" maxlength="15" 
-                            style="flex: 2; background: rgba(255,255,255,0.1); border: 1px solid #666; color: #fff; padding: 8px; 
-                            font-family: 'Cinzel', serif; text-align: center; font-size: 1rem; text-transform: uppercase;">
-                        
-                        <input type="number" id="capacity-input" value="4" min="2" max="32" placeholder="Max"
-                            style="flex: 0.5; background: rgba(0,0,0,0.3); border: 1px solid #555; color: white; padding: 8px; 
-                            font-family: 'Cinzel', serif; text-align: center;">
-                        
-                        <button class="btn" id="btn-join" style="flex: 1; margin: 0; padding: 0; font-size: 0.8rem; background: #333;">GO</button>
-                    </div>
-
-                    <!-- Password Input -->
-                    <div style="margin-top: 10px; width: 100%;">
-                        <input type="password" id="password-input" placeholder="Optional Password (Private)" 
-                            style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid #555; color: white; padding: 8px; 
-                            font-family: 'Cinzel', serif; text-align: center; font-size: 0.8rem;">
-                    </div>
-                    
-                    <!-- Game Mode Selection -->
-                    <div style="margin-top: 15px; width: 100%;">
-                        <select id="mode-select" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid #555; color: #ddd; padding: 8px; font-family: 'Cinzel', serif; cursor: pointer;">
-                            <option value="arena">⚔️ Arena Battle (PvP Focus)</option>
-                            <option value="story">📜 Adventure (Story Co-op)</option>
-                        </select>
-                    </div>
-
-                    <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 20px;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="pvp-toggle" style="width: 16px; height: 16px; cursor: pointer;">
-                            <label for="pvp-toggle" style="color: #ccc; font-size: 0.8rem; cursor: pointer;">Enable PvP</label>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <label for="rounds-input" style="color: #ccc; font-size: 0.8rem;">Rounds:</label>
-                            <input type="number" id="rounds-input" value="3" min="1" max="10" style="width: 40px; background: rgba(0,0,0,0.3); border: 1px solid #555; color: white; padding: 2px; text-align: center; font-family: 'Cinzel', serif;">
-                        </div>
-                    </div>
-                </div>
-
-                <div style="width: 100%;">
-                    <label style="display: block; color: #aaa; font-size: 0.8rem; margin-bottom: 10px; text-align: left;">BROWSE ACTIVE SERVERS</label>
-                    
-                    <div id="server-list-container" style="
-                        width: 100%; 
-                        height: 150px; 
-                        background: rgba(0,0,0,0.3); 
-                        border: 1px solid #333; 
-                        overflow-y: auto; 
-                        display: flex; 
-                        flex-direction: column; 
-                        gap: 2px;
-                        padding: 2px;
-                    ">
-                        <div style="color: #666; font-size: 0.8rem; padding: 10px; text-align: center;">Connecting to Lobby...</div>
-                    </div>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 10px;">
-                <button class="btn" id="btn-customize">Customize</button>
-                <button class="btn" id="btn-settings">Settings</button>
-            </div>
-            
-            <div class="controls-grid">
-                <div class="key-row"><span>Movement</span> <div><span class="key-cap">A</span><span class="key-cap">D</span></div></div>
-                <div class="key-row"><span>Look / Aim</span> <div><span class="key-cap">W</span><span class="key-cap">S</span></div></div>
-                <div class="key-row"><span>Jump</span> <span class="key-cap">SPACE</span></div>
-                <div class="key-row"><span>Dash</span> <span class="key-cap">SHIFT</span></div>
-                <div class="key-row"><span>Attack</span> <div class="mouse-icon mouse-l"></div></div>
-                <div class="key-row"><span>Fireball</span> <span class="key-cap">Q</span></div>
-                <div class="key-row"><span>Heal (Hold)</span> <div class="mouse-icon mouse-r"></div></div>
-                <div class="key-row"><span>Chat</span> <span class="key-cap">T</span></div>
-            </div>
-        </div>
-
-        <!-- SETTINGS MENU -->
-        <div id="settings-menu" class="menu-screen hidden">
-            <h2 class="menu-title" style="font-size: 2rem;">Settings</h2>
-            
-            <div style="width: 300px; display: flex; flex-direction: column; gap: 20px; background: rgba(0,0,0,0.6); padding: 30px; border-radius: 8px; border: 1px solid #444; text-align: center;">
-                <p style="color: #aaa;">Audio Disabled</p>
-                <p style="color: #666; font-size: 0.8rem;">All sound effects and music have been removed.</p>
-            </div>
-
-            <button class="btn" id="btn-settings-back" style="margin-top: 30px;">Back</button>
-        </div>
-
-        <!-- CUSTOMIZATION MENU -->
-        <div id="customize-menu" class="menu-screen hidden">
-            <h2 class="menu-title" style="font-size: 2rem;">Vessel Style</h2>
-            
-            <div style="width: 320px; background: rgba(0,0,0,0.9); padding: 20px; border-radius: 8px; border: 1px solid #444; max-height: 80vh; overflow-y: auto;">
-                
-                <!-- Mask -->
-                <div class="custom-option">
-                    <span>Mask</span>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <button class="cust-arrow" id="mask-prev"><</button>
-                        <span id="mask-display" style="width: 80px; text-align: center; font-size: 0.7rem;">DEFAULT</span>
-                        <button class="cust-arrow" id="mask-next">></button>
-                    </div>
-                </div>
-
-                <!-- Outfit -->
-                <div class="custom-option">
-                    <span>Outfit</span>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <button class="cust-arrow" id="outfit-prev"><</button>
-                        <span id="outfit-display" style="width: 80px; text-align: center; font-size: 0.7rem;">CLOAK</span>
-                        <button class="cust-arrow" id="outfit-next">></button>
-                    </div>
-                </div>
-
-                <!-- Accessory -->
-                <div class="custom-option">
-                    <span>Accessory</span>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <button class="cust-arrow" id="acc-prev"><</button>
-                        <span id="acc-display" style="width: 80px; text-align: center; font-size: 0.7rem;">NONE</span>
-                        <button class="cust-arrow" id="acc-next">></button>
-                    </div>
-                </div>
-
-                <!-- Height -->
-                <div class="custom-option">
-                    <span>Height</span>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <button class="cust-arrow" id="height-prev">-</button>
-                        <span id="height-display" style="width: 60px; text-align: center; font-size: 0.8rem;">100%</span>
-                        <button class="cust-arrow" id="height-next">+</button>
-                    </div>
-                </div>
-
-                <!-- Weapon -->
-                <div class="custom-option">
-                    <span>Weapon</span>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <button class="cust-arrow" id="sword-prev"><</button>
-                        <span id="sword-display" style="width: 80px; text-align: center; font-size: 0.7rem;">NAIL</span>
-                        <button class="cust-arrow" id="sword-next">></button>
-                    </div>
-                </div>
-
-                <!-- Color -->
-                <div class="custom-option" style="flex-direction: column; align-items: flex-start;">
-                    <span style="margin-bottom: 10px;">Color Theme</span>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <div class="color-swatch selected" data-color="#2c3e50" style="background: #2c3e50;"></div>
-                        <div class="color-swatch" data-color="#c0392b" style="background: #c0392b;"></div>
-                        <div class="color-swatch" data-color="#27ae60" style="background: #27ae60;"></div>
-                        <div class="color-swatch" data-color="#8e44ad" style="background: #8e44ad;"></div>
-                        <div class="color-swatch" data-color="#d35400" style="background: #d35400;"></div>
-                        <div class="color-swatch" data-color="#7f8c8d" style="background: #7f8c8d;"></div>
-                        <div class="color-swatch" data-color="#111111" style="background: #111111; border: 1px solid #555;"></div>
-                        <div class="color-swatch" data-color="#f1c40f" style="background: #f1c40f;"></div>
-                        <div class="color-swatch" data-color="#ffffff" style="background: #ffffff;"></div>
-                        <div class="color-swatch" data-color="#e91e63" style="background: #e91e63;"></div>
-                    </div>
-                </div>
-                
-                <!-- Background -->
-                <div class="custom-option" style="flex-direction: column; align-items: flex-start;">
-                    <span style="margin-bottom: 5px;">Custom Background</span>
-                    <input type="file" id="bg-upload" accept="image/*" style="width: 100%; font-size: 0.7rem;">
-                    <div style="font-size: 0.6rem; color: #666; margin-top: 2px;">Visible only to you.</div>
-                </div>
-
-                <div style="height: 120px; border: 1px solid #333; background: #0f0f16; display: flex; justify-content: center; align-items: center; margin-top: 20px;">
-                    <canvas id="preview-canvas" width="120" height="120"></canvas>
-                </div>
-            </div>
-
-            <button class="btn" id="btn-customize-done" style="margin-top: 20px;">Done</button>
-        </div>
-
-        <div id="pause-menu" class="menu-screen hidden">
-            <h2 class="menu-title" style="font-size: 2rem;">Paused</h2>
-            <button class="btn" id="btn-resume">Resume</button>
-            <button class="btn" id="btn-save">Bench (Save)</button>
-            <button class="btn" id="btn-quit">Quit</button>
-        </div>
+<!-- Loading Screen -->
+<div id="loading">
+    <div class="loader-box">
+        <div class="loader-ring"></div>
+        <div class="loader-ring"></div>
+        <div class="loader-ring"></div>
+        <div class="loader-icon"><i data-lucide="gamepad-2" style="width:30px;height:30px;color:var(--primary)"></i></div>
     </div>
+    <div class="loader-text">Carregando...</div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, onDisconnect, remove, update, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+<!-- Snow Effect -->
+<div id="snow-container"></div>
 
-    // --- FIREBASE CONFIG ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyAIKPooiHzcB5d8_mRiDMyiam4AYel4lZs",
-      authDomain: "cs-low-poly.firebaseapp.com",
-      databaseURL: "https://cs-low-poly-default-rtdb.firebaseio.com",
-      projectId: "cs-low-poly",
-      storageBucket: "cs-low-poly.firebasestorage.app",
-      messagingSenderId: "291417778108",
-      appId: "1:291417778108:web:881869dd93735c6167edb9"
-    };
+<!-- Toast Container -->
+<div id="toast-container"></div>
 
-    // --- NETWORK MANAGER ---
-    const Network = {
-        app: null,
-        db: null,
-        auth: null,
-        playerId: null,
-        playerName: null,
-        playerRef: null,
-        roomRef: null,
-        remotePlayers: {},
-        remoteStates: {}, // To track previous frame state for edge detection
-        connected: false,
-        pvpEnabled: false,
-        lastUpdate: 0,
-        currentRoom: null,
+<!-- Header -->
+<header>
+    <div class="brand" onclick="goHome()">
+        <div class="brand-icon">
+            <i data-lucide="gamepad-2" style="width:22px;height:22px"></i>
+        </div>
+        Gamedevspace<span>.Cloud</span>
+    </div>
+
+    <div class="header-center">
+        <div class="search-container">
+            <i data-lucide="search" class="search-icon" style="width:18px;height:18px"></i>
+            <input type="text" class="search-bar" id="searchInput" placeholder="Buscar jogos..." oninput="handleSearch()">
+        </div>
+    </div>
+
+    <div class="nav-actions">
+        <button class="btn btn-primary" onclick="openModal('postModal')">
+            <i data-lucide="plus" style="width:18px;height:18px"></i>
+            <span>Publicar</span>
+        </button>
         
-        initApp: async () => {
-             if (!Network.app) {
-                Network.app = initializeApp(firebaseConfig);
-                Network.db = getDatabase(Network.app);
-                Network.auth = getAuth(Network.app);
-                
-                Network.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
-                Network.playerName = "Vessel " + Math.floor(Math.random() * 1000);
-
-                try {
-                    await signInAnonymously(Network.auth);
-                    console.log("Authenticated with Firebase");
-                    Network.startServerBrowser();
-                } catch (error) {
-                    console.error("Auth Error:", error);
-                    alert("Authentication Failed: " + error.message);
-                }
-             }
-        },
-
-        startServerBrowser: () => {
-            const listRef = ref(Network.db, 'hk_multiplayer/rooms');
-            onValue(listRef, (snapshot) => {
-                const rooms = snapshot.val() || {};
-                const listEl = document.getElementById('server-list-container');
-                listEl.innerHTML = ''; 
-
-                if (Object.keys(rooms).length === 0) {
-                    listEl.innerHTML = '<div style="color: #666; font-size: 0.8rem; padding: 10px;">No active servers found. Create one above!</div>';
-                    return;
-                }
-
-                Object.keys(rooms).forEach(roomCode => {
-                    const r = rooms[roomCode];
-                    const count = r.players ? Object.keys(r.players).length : 0;
-                    const max = r.settings ? r.settings.maxPlayers : 4;
-                    const isPrivate = r.settings && r.settings.password && r.settings.password.length > 0;
-                    
-                    const el = document.createElement('div');
-                    el.className = 'server-item';
-                    el.innerHTML = `
-                        <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                            <div style="display:flex; align-items:center;">
-                                ${isPrivate ? '<div class="locked-icon" title="Private"></div>' : ''}
-                                <span style="color:white; font-weight:bold;">${roomCode}</span>
-                            </div>
-                            <span style="color:#888; font-size:0.7rem;">${r.settings && r.settings.mode ? r.settings.mode.toUpperCase() : 'ARENA'}</span>
-                        </div>
-                        <div style="display:flex; align-items:center; gap: 10px;">
-                            <span style="color: ${count >= max ? '#d32f2f' : '#4caf50'}">${count}/${max}</span>
-                            <button class="btn-join-small">JOIN</button>
-                        </div>
-                    `;
-                    el.querySelector('.btn-join-small').addEventListener('click', () => {
-                         Network.attemptJoin(roomCode, max);
-                    });
-                    listEl.appendChild(el);
-                });
-            });
-        },
-
-        attemptJoin: async (roomCode, capacity) => {
-            try {
-                if (!Network.auth.currentUser) await Network.initApp();
-
-                const db = Network.db;
-                const roomRef = ref(db, `hk_multiplayer/rooms/${roomCode}`);
-                
-                const snapshot = await get(roomRef);
-                const val = snapshot.val() || {};
-                const players = val.players || {};
-                let settings = val.settings || {};
-                
-                let maxPlayers = settings.maxPlayers;
-                
-                // New Room Creation
-                if (!maxPlayers) {
-                    maxPlayers = parseInt(capacity) || 4;
-                    const pvp = document.getElementById('pvp-toggle').checked;
-                    const rounds = parseInt(document.getElementById('rounds-input').value) || 3;
-                    const mode = document.getElementById('mode-select').value || 'arena';
-                    const pass = document.getElementById('password-input').value.trim();
-                    
-                    await update(child(roomRef, 'settings'), { 
-                        maxPlayers: maxPlayers, 
-                        pvp: pvp, 
-                        rounds: rounds, 
-                        mode: mode,
-                        password: pass
-                    });
-                } else {
-                    // Joining Existing Room - Check Password
-                    if (settings.password && settings.password.length > 0) {
-                        const entered = prompt("🔒 This room is private. Please enter the password:");
-                        if (entered !== settings.password) {
-                            alert("Incorrect Password!");
-                            return;
-                        }
-                    }
-                }
-                
-                const currentCount = Object.keys(players).length;
-                if (currentCount >= maxPlayers) {
-                    alert(`Room ${roomCode} is full! (${currentCount}/${maxPlayers})`);
-                    return;
-                }
-
-                Network.connectToRoom(roomCode, maxPlayers);
-
-            } catch (e) {
-                console.error("Join Failed", e);
-                alert("Network Error: " + e.message);
-            }
-        },
-
-        connectToRoom: (roomCode, maxPlayers) => {
-            try {
-                Network.currentRoom = roomCode;
-                const roomPath = `hk_multiplayer/rooms/${roomCode}/players`;
-                Network.playerRef = ref(Network.db, `${roomPath}/${Network.playerId}`);
-                Network.roomRef = ref(Network.db, roomPath);
-
-                onDisconnect(Network.playerRef).remove();
-
-                window.addEventListener('beforeunload', () => {
-                      remove(Network.playerRef);
-                });
-
-                // Listen for Room Settings (PvP, Rounds, Level Index)
-                const settingsRef = child(ref(Network.db, `hk_multiplayer/rooms/${roomCode}`), 'settings');
-                onValue(settingsRef, (snapshot) => {
-                     const s = snapshot.val() || {};
-                     Network.pvpEnabled = s.pvp || false;
-                     Network.maxRounds = s.rounds || 3;
-                     
-                     // Sync Level/Mode
-                     const targetMode = s.mode || 'arena';
-                     const targetLevel = s.levelIndex || 0;
-
-                     // Only reload if mode changed OR level index changed significantly
-                     if (targetMode !== Game.currentMode || (targetMode === 'story' && targetLevel !== Game.currentLevelIndex)) {
-                         Game.loadLevel(targetMode, targetLevel);
-                     }
-                     
-                     if(Network.pvpEnabled) {
-                         document.getElementById('scoreboard').style.display = 'block';
-                     } else {
-                         document.getElementById('scoreboard').style.display = 'none';
-                     }
-                });
-
-                onValue(Network.roomRef, (snapshot) => {
-                    const data = snapshot.val() || {};
-                    delete data[Network.playerId];
-                    Network.remotePlayers = data;
-                    
-                    const count = Object.keys(data).length + 1;
-                    document.getElementById('player-count').innerText = `${count}/${maxPlayers} Online` + (Network.pvpEnabled ? " [PvP]" : "");
-                    document.getElementById('net-dot').classList.add('connected');
-                    document.getElementById('server-id').innerText = `Room: ${roomCode}`;
-                    document.getElementById('server-id').style.display = 'block';
-                    
-                    // Update Scoreboard
-                    if (Network.pvpEnabled) {
-                        const list = document.getElementById('score-list');
-                        let scores = [];
-                        // My Score
-                        scores.push({n: Network.playerName, s: Game.player ? Game.player.score : 0, me: true});
-                        // Others
-                        Object.values(data).forEach(p => {
-                            scores.push({n: p.n || 'Enemy', s: p.sc || 0, me: false});
-                        });
-                        scores.sort((a,b) => b.s - a.s);
-                        
-                        list.innerHTML = scores.map(p => `
-                            <div class="score-row" style="color: ${p.me ? '#4caf50' : (p.s >= Network.maxRounds ? 'gold' : 'white')}">
-                                ${p.n}: ${p.s}/${Network.maxRounds}
-                            </div>
-                        `).join('');
-                        
-                        // Check Win
-                        const winner = scores.find(s => s.s >= Network.maxRounds);
-                        if (winner) {
-                            const ann = document.getElementById('winner-announce');
-                            ann.innerText = winner.me ? "VICTORY" : "DEFEAT";
-                            ann.style.opacity = 1;
-                            ann.style.color = winner.me ? 'gold' : '#d32f2f';
-                        } else {
-                            document.getElementById('winner-announce').style.opacity = 0;
-                        }
-                    }
-                });
-
-                Network.connected = true;
-                console.log(`Joined Room: ${roomCode}`);
-                window.Game.startGame();
-
-            } catch (e) {
-                console.error("Connection Failed", e);
-            }
-        },
-
-        sendUpdate: (playerData) => {
-            if (!Network.connected || !Network.playerRef) return;
-            const now = Date.now();
-            if (now - Network.lastUpdate > 50) {
-                update(Network.playerRef, {
-                    x: Math.round(playerData.x),
-                    y: Math.round(playerData.y),
-                    f: playerData.facing, 
-                    s: playerData.animState, 
-                    a: playerData.attacking,
-                    fb: playerData.firingFireball, 
-                    hp: playerData.health,
-                    n: Network.playerName,
-                    cc: playerData.cloakColor, 
-                    ms: playerData.maskStyle,
-                    sw: playerData.swordStyle,
-                    os: playerData.outfitStyle,
-                    as: playerData.accessoryStyle,
-                    hs: playerData.heightScale,
-                    sc: playerData.score,
-                    ts: now,
-                    msg: playerData.chatMessage,
-                    mt: playerData.chatTimer
-                });
-                Network.lastUpdate = now;
-            }
-        }
-    };
-
-    window.Network = Network;
-    Network.initApp();
-
-    document.getElementById('btn-join').addEventListener('click', () => {
-        const input = document.getElementById('room-code-input');
-        const capInput = document.getElementById('capacity-input');
-        const code = input.value.trim().toUpperCase();
-        
-        if(!code) {
-            alert("Please enter a room code to create or join.");
-            return;
-        }
-
-        const capacity = parseInt(capInput.value) || 4;
-        Network.attemptJoin(code, capacity);
-    });
-
-    document.getElementById('btn-resume').addEventListener('click', () => window.Game.resumeGame());
-    document.getElementById('btn-save').addEventListener('click', () => window.Game.saveGame());
-    document.getElementById('btn-quit').addEventListener('click', () => location.reload());
-    
-    // Open Settings
-    document.getElementById('btn-settings').addEventListener('click', () => {
-        document.getElementById('start-screen').classList.add('hidden');
-        document.getElementById('settings-menu').classList.remove('hidden');
-    });
-    // Back from Settings
-    document.getElementById('btn-settings-back').addEventListener('click', () => {
-        document.getElementById('settings-menu').classList.add('hidden');
-        document.getElementById('start-screen').classList.remove('hidden');
-    });
-    
-    // Customize Menu
-    document.getElementById('btn-customize').addEventListener('click', () => {
-        document.getElementById('start-screen').classList.add('hidden');
-        document.getElementById('customize-menu').classList.remove('hidden');
-        window.Game.previewCustomization();
-    });
-    document.getElementById('btn-customize-done').addEventListener('click', () => {
-        document.getElementById('customize-menu').classList.add('hidden');
-        document.getElementById('start-screen').classList.remove('hidden');
-    });
-
-</script>
-
-<script>
-/**
- * HOLLOW KNIGHT CLONE - MAIN ENGINE
- */
-
-const GRAVITY = 0.55;
-const TERMINAL_VELOCITY = 20;
-const FRICTION = 0.8;
-const MOVE_SPEED = 7;
-const JUMP_FORCE = 16;
-const DASH_SPEED = 16;
-const DASH_DURATION = 14;
-const ATTACK_DURATION = 15;
-const INVULNERABILITY_TIME = 60;
-
-const COLORS = {
-    bg: '#0f0f16',
-    platform: '#1a1a2e',
-    platformBorder: '#3d3d5c',
-    player: '#f0f0f0',
-    otherPlayer: '#d0d0f0',
-    cloak: '#2c3e50',
-    enemy: '#d35400',
-    boss: '#c0392b',
-    soul: '#ecf0f1',
-    hazard: '#7f8c8d'
-};
-
-// --- INPUT HANDLING ---
-const Input = {
-    keys: {},
-    mouse: { x: 0, y: 0, left: false, right: false },
-    active: true,
-    
-    init: () => {
-        window.addEventListener('keydown', e => {
-            if(Input.active) Input.keys[e.code] = true;
+        <div class="user-menu">
+            <div class="user-pill" onclick="toggleDropdown()" id="userPill">
+                <img id="userAvatar" class="avatar" src="https://ui-avatars.com/api/?name=Guest&background=ff2e40&color=fff">
+                <div class="user-info">
+                    <span class="user-name" id="userName">Entrar</span>
+                    <span class="user-role" id="userRole">Visitante</span>
+                </div>
+            </div>
             
-            // Toggle Chat
-            if(e.code === 'KeyT' && !document.getElementById('chat-container').style.display.includes('block')) {
-                Game.toggleChat(true);
-                e.preventDefault();
-            }
-            // Send Chat
-            if(e.code === 'Enter' && document.getElementById('chat-container').style.display.includes('block')) {
-                Game.sendChat();
-            }
-        });
-        window.addEventListener('keyup', e => Input.keys[e.code] = false);
+            <div class="dropdown" id="userDropdown">
+                <div id="loggedOutMenu">
+                    <div class="dropdown-item" onclick="openModal('loginModal')">
+                        <i data-lucide="log-in" style="width:18px;height:18px"></i>
+                        <span>Fazer Login</span>
+                    </div>
+                    <div class="dropdown-item" onclick="openModal('registerModal')">
+                        <i data-lucide="user-plus" style="width:18px;height:18px"></i>
+                        <span>Criar Conta</span>
+                    </div>
+                </div>
+                <div id="loggedInMenu" style="display:none">
+                    <div class="dropdown-item" onclick="openProfilePage(currentUser?.id)">
+                        <i data-lucide="user" style="width:18px;height:18px"></i>
+                        <span>Meu Perfil</span>
+                    </div>
+                    <div class="dropdown-item" onclick="switchTab('library'); closeDropdown()">
+                        <i data-lucide="bookmark" style="width:18px;height:18px"></i>
+                        <span>Biblioteca</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item danger" onclick="logout()">
+                        <i data-lucide="log-out" style="width:18px;height:18px"></i>
+                        <span>Sair</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Hero Section -->
+<div class="hero" id="heroSection">
+    <div class="hero-content">
+        <div class="hero-badge">
+            <i data-lucide="sparkles" style="width:16px;height:16px"></i>
+            <span>Edição Especial de Natal</span>
+        </div>
+        <h1><span class="gradient">Ho Ho Ho! Jogue Agora</span></h1>
+        <p>A maior biblioteca de jogos natalinos do Gamedevspace. Descubra, jogue e avalie!</p>
         
-        window.addEventListener('mousedown', e => {
-            if (e.button === 0) Input.mouse.left = true;
-            if (e.button === 2) Input.mouse.right = true;
-        });
-        window.addEventListener('mouseup', e => {
-            if (e.button === 0) Input.mouse.left = false;
-            if (e.button === 2) Input.mouse.right = false;
-        });
-        window.addEventListener('contextmenu', e => e.preventDefault());
-    },
-    
-    reset: () => { Input.keys = {}; Input.mouse.left = false; Input.mouse.right = false; },
-    
-    left: () => Input.keys['KeyA'] || Input.keys['ArrowLeft'],
-    right: () => Input.keys['KeyD'] || Input.keys['ArrowRight'],
-    up: () => Input.keys['KeyW'] || Input.keys['ArrowUp'],
-    down: () => Input.keys['KeyS'] || Input.keys['ArrowDown'],
-    jump: () => Input.keys['Space'] || Input.keys['KeyZ'],
-    dash: () => Input.keys['ShiftLeft'] || Input.keys['KeyC'],
-    attack: () => Input.mouse.left || Input.keys['KeyX'],
-    fireball: () => Input.keys['KeyQ'],
-    heal: () => Input.mouse.right || Input.keys['KeyF'], 
-    pause: () => Input.keys['Escape']
-};
-
-// --- ENTITIES ---
-class Entity {
-    constructor(x, y, w, h) {
-        this.x = x; this.y = y;
-        this.w = w; this.h = h;
-        this.vx = 0; this.vy = 0;
-        this.markedForDeletion = false;
-    }
-    
-    getBounds() {
-        return { left: this.x, right: this.x + this.w, top: this.y, bottom: this.y + this.h };
-    }
-
-    checkCollision(other) {
-        const a = this.getBounds();
-        const b = other.getBounds();
-        return (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
-    }
-}
-
-class Particle extends Entity {
-    constructor(x, y, color, vx, vy, life) {
-        super(x, y, 4, 4);
-        this.color = color;
-        this.vx = vx;
-        this.vy = vy;
-        this.life = life;
-    }
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vy += 0.2; 
-        this.life--;
-        if (this.life <= 0) this.markedForDeletion = true;
-    }
-    draw(ctx, camX, camY) {
-        ctx.fillStyle = this.color;
-        ctx.globalAlpha = this.life / 30;
-        ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
-        ctx.globalAlpha = 1.0;
-    }
-}
-
-class Fireball extends Entity {
-    constructor(x, y, dir, isHostile = false, isMine = false) {
-        super(x, y, 30, 20);
-        this.dir = dir;
-        this.vx = dir * 12; 
-        this.life = 60; 
-        this.isHostile = isHostile;
-        this.isMine = isMine;
-    }
-    update(map, enemies) {
-        this.x += this.vx;
-        this.life--;
-        
-        if (this.life % 2 === 0) {
-            Game.particles.push(new Particle(this.x + (this.dir===1?0:this.w), this.y + this.h/2, this.isHostile ? 'rgba(255,100,100,0.7)' : 'rgba(255,255,255,0.7)', -this.dir * 2, (Math.random()-0.5)*2, 10));
-        }
-
-        if (this.life <= 0) {
-            this.markedForDeletion = true;
-            return;
-        }
-
-        // Wall Collision
-        for (const rect of map) {
-            if (this.checkCollision({getBounds: () => ({left: rect.x, right: rect.x+rect.w, top: rect.y, bottom: rect.y+rect.h})})) {
-                this.markedForDeletion = true;
-                this.explode();
-                return;
-            }
-        }
-
-        if (this.isHostile) {
-            // PvP: Check collision with local player (Hostile means fired by OTHER)
-            if (Game.player && !Game.player.dead && this.checkCollision(Game.player)) {
-                Game.player.takeDamage(1, this.x, 'fireball');
-                this.markedForDeletion = true;
-                this.explode();
-            }
-        } else if (this.isMine && window.Network && window.Network.pvpEnabled) {
-             // My fireball hitting others (logic mostly for kill credit if we could track it)
-             // We can't hit enemies with it if they aren't local enemies? 
-             // Local enemies are shared.
-             enemies.forEach(e => {
-                if (!e.dead && this.checkCollision(e)) {
-                    e.takeDamage(2); 
-                    this.markedForDeletion = true;
-                    this.explode();
-                }
-            });
-            // Hitting other players?
-            // We don't have authority to damage them directly. They check 'isHostile'.
-        } else {
-            // Standard Friendly (PvE)
-            enemies.forEach(e => {
-                if (!e.dead && this.checkCollision(e)) {
-                    e.takeDamage(2); 
-                    this.markedForDeletion = true;
-                    this.explode();
-                }
-            });
-        }
-    }
-
-    explode() {
-        for(let i=0; i<10; i++) {
-             Game.particles.push(new Particle(this.x + this.w/2, this.y + this.h/2, this.isHostile ? 'red' : 'white', (Math.random()-0.5)*10, (Math.random()-0.5)*10, 20));
-        }
-    }
-
-    draw(ctx, camX, camY) {
-        ctx.fillStyle = this.isHostile ? '#ff4444' : 'white';
-        ctx.beginPath();
-        const cx = this.x - camX + this.w/2;
-        const cy = this.y - camY + this.h/2;
-        ctx.ellipse(cx, cy, 15, 10, 0, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = this.isHostile ? 'rgba(255,0,0,0.8)' : 'rgba(200,200,255,0.8)';
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, 10, 6, 0, 0, Math.PI*2);
-        ctx.fill();
-    }
-}
-
-class Player extends Entity {
-    constructor(x, y) {
-        super(x, y, 24, 40);
-        this.startPos = {x, y};
-        this.health = 5;
-        this.maxHealth = 5;
-        this.soul = 0;
-        this.maxSoul = 100;
-        this.facing = 1; 
-        
-        this.grounded = false;
-        this.dashing = false;
-        this.dashTimer = 0;
-        this.dashCooldown = 0;
-        this.attacking = false;
-        this.attackTimer = 0;
-        this.attackCooldown = 0;
-        this.fireballCooldown = 0;
-        this.firingFireball = false; 
-        this.healing = false;
-        this.invulnerable = 0;
-        this.dead = false;
-        this.recoil = 0;
-        
-        this.animState = 0; 
-        this.animTimer = 0;
-        this.stretch = {x: 1, y: 1};
-        
-        // Chat
-        this.chatMessage = "";
-        this.chatTimer = 0;
-
-        // Customization
-        this.cloakColor = '#2c3e50';
-        this.maskStyle = 0; 
-        this.swordStyle = 0; 
-        this.outfitStyle = 0; // 0: Cloak, 1: Armor, 2: Robe
-        this.accessoryStyle = 0; // 0: None
-        this.heightScale = 1.0;
-        this.score = 0;
-    }
-
-    respawn() {
-        this.x = this.startPos.x;
-        this.y = this.startPos.y;
-        this.health = this.maxHealth;
-        this.dead = false;
-        this.vx = 0;
-        this.vy = 0;
-        Game.camera.shake = 0;
-        Game.sceneTransition();
-    }
-
-    takeDamage(amount, srcX, attackerKey) {
-        if (this.invulnerable > 0 || this.dead) return;
-        this.health -= amount;
-        this.invulnerable = INVULNERABILITY_TIME;
-        this.recoil = 10;
-        this.vx = (this.x < srcX ? -1 : 1) * 8;
-        this.vy = -5;
-        Game.camera.shake = 10;
-        Game.updateHUD();
-
-        if (this.health <= 0) {
-            this.dead = true;
-            for(let i=0; i<20; i++) {
-                Game.particles.push(new Particle(this.x + this.w/2, this.y + this.h/2, 'black', (Math.random()-0.5)*10, (Math.random()-0.5)*10, 60));
-            }
-            
-            // If PvP and killed by another player, give them a point
-            if (window.Network && window.Network.pvpEnabled && attackerKey) {
-                 // We can't update other player's score directly, so we broadcast that we died to them?
-                 // Simpler: Just handle score locally for display? No, need sync.
-                 // Actually, simpler: The killer detects they killed you? No, unreliable.
-                 // Solution: We update the attacker's score in OUR database if we have permissions? No.
-                 // We can only update our own score. 
-                 // So... In this P2P model, we can't easily increment the OTHER person's score securely.
-                 // WORKAROUND: We will increment our own "deaths" and the winner logic can be calculated? 
-                 // BETTER: We trust the client. If I die, I update a "lastKilledBy" field on myself.
-                 // The attacker sees this and increments THEIR score.
-                 // Too complex for single file. 
-                 // SIMPLIFIED: When I die, I respawn. That's it. 
-                 // Wait, user asked for rounds.
-                 // Let's implement: If I die, I send a chat message "Killed by X".
-                 // Actually, let's just use local detection. If I hit someone and their health drops to 0?
-                 // Impossible to know for sure due to lag.
-                 // OK: Player who DIES handles the logic. "I died."
-                 // But I can't increment your score.
-                 // Okay, I will increment a public counter in the room if I could.
-                 // Let's go with: I died. I will Respawn.
-                 // The "Round" system will be: First to 5 kills.
-                 // Since I can't track your kills easily, I will track MY DEATHS. 
-                 // Score = (Total Deaths of others) - (My Deaths)? No.
-                 // Let's just make it simple: The attacker (local) detects if a fireball/slash hits. 
-                 // If the hit is fatal (remote HP low), add score locally.
-                 // This is prone to desync (I see you die, you don't).
-                 // For a prototype: I will grant myself a point if I land a hit that *should* kill you.
-                 // Not perfect but works for "Play with friends".
-            }
-            
-            setTimeout(() => this.respawn(), 1000);
-        }
-    }
-
-    addSoul(amount) {
-        this.soul = Math.min(this.soul + amount, this.maxSoul);
-        Game.updateHUD();
-    }
-
-    update(map, enemies) {
-        if (this.dead) return;
-        this.animTimer++;
-        if (this.chatTimer > 0) this.chatTimer--;
-        
-        this.stretch.x += (1 - this.stretch.x) * 0.1;
-        this.stretch.y += (1 - this.stretch.y) * 0.1;
-
-        if (Input.heal() && this.grounded && this.soul >= 33 && this.health < this.maxHealth) {
-            this.healing = true;
-            this.vx *= 0.8;
-            if (this.animTimer % 10 === 0) {
-                 Game.particles.push(new Particle(this.x + Math.random()*this.w, this.y + Math.random()*this.h, 'white', 0, -1, 20));
-            }
-            
-            if (!this.healTimer) this.healTimer = 60;
-            this.healTimer--;
-            if (this.healTimer <= 0) {
-                this.soul -= 33;
-                this.health++;
-                this.healTimer = 0;
-                this.healing = false;
-                Game.updateHUD();
-            }
-        } else {
-            this.healing = false;
-            this.healTimer = 0;
-        }
-
-        if (this.recoil > 0) {
-            this.recoil--;
-        } else if (!this.healing && Input.active) {
-            if (Input.left()) { 
-                this.vx -= 1; 
-                this.facing = -1; 
-                this.animState = 1;
-            }
-            else if (Input.right()) { 
-                this.vx += 1; 
-                this.facing = 1; 
-                this.animState = 1;
-            } else {
-                this.animState = 0;
-            }
-            
-            this.vx *= FRICTION;
-            if (Math.abs(this.vx) < 0.1) this.vx = 0;
-            if (this.vx > MOVE_SPEED) this.vx = MOVE_SPEED;
-            if (this.vx < -MOVE_SPEED) this.vx = -MOVE_SPEED;
-        }
-
-        if (Input.jump() && !this.lastJumpKey && Input.active) {
-            if (this.grounded) {
-                this.vy = -JUMP_FORCE;
-                this.stretch = {x: 0.7, y: 1.3};
-                this.grounded = false;
-                this.lastJumpKey = true;
-                this.animState = 2;
-                
-                for(let i=0; i<5; i++) {
-                    Game.particles.push(new Particle(this.x + this.w/2, this.y + this.h, 'white', (Math.random()-0.5)*4, Math.random()*-2, 20));
-                }
-            }
-        } else if (!Input.jump()) {
-            this.lastJumpKey = false;
-            if (this.vy < -3) this.vy *= 0.5;
-        }
-
-        if (Input.dash() && !this.dashing && this.dashCooldown <= 0 && !this.healing && Input.active) {
-            this.dashing = true;
-            this.dashTimer = DASH_DURATION;
-            this.dashCooldown = 40; 
-            this.vx = this.facing * DASH_SPEED;
-            this.vy = 0;
-            Game.camera.shake = 5;
-        }
-
-        // Fireball Ability
-        if (Input.fireball() && this.fireballCooldown <= 0 && !this.healing && Input.active) {
-            this.fireballCooldown = 60; // 1 second cooldown
-            this.firingFireball = true;
-            setTimeout(() => this.firingFireball = false, 200);
-            
-            const fbX = this.facing === 1 ? this.x + this.w + 5 : this.x - 35;
-            const fbY = this.y + 10;
-            // Pass true for ownership
-            Game.fireballs.push(new Fireball(fbX, fbY, this.facing, false, true));
-            
-            // Recoil
-            this.vx = -this.facing * 5; 
-            Game.camera.shake = 5;
-            Game.updateHUD();
-        }
-
-        if (Input.attack() && !this.attacking && this.attackCooldown <= 0 && !this.healing && Input.active) {
-            this.attacking = true;
-            this.attackTimer = ATTACK_DURATION;
-            this.attackCooldown = (this.swordStyle === 1) ? 15 : (this.swordStyle === 2 ? 45 : 25); // Needle faster, Greatsword slower
-            
-            let reach = 40;
-            let dmg = 1;
-            let hitH = 20;
-
-            if (this.swordStyle === 2) { reach = 60; dmg = 2; hitH = 40; } // Greatsword
-            if (this.swordStyle === 3) { reach = 50; dmg = 1; hitH = 30; } // Scythe
-            if (this.swordStyle === 4) { reach = 100; dmg = 1; hitH = 10; } // Blaster (Long range melee)
-            
-            const hitX = this.facing === 1 ? this.x + this.w : this.x - reach;
-            const hitY = this.y + 10;
-
-            // Enemies
-            enemies.forEach(e => {
-                if (!e.dead && hitX < e.x + e.w && hitX + reach > e.x && hitY < e.y + e.h && hitY + hitH > e.y) {
-                    e.takeDamage(dmg);
-                    this.addSoul(15);
-                    this.recoil = 5;
-                    if(this.grounded) this.vx = -this.facing * 5;
-                }
-            });
-            
-            // PvP Hit Detection (Client Side Authority for scoring, sorta)
-            if (window.Network && window.Network.connected && window.Network.pvpEnabled) {
-                const remotes = window.Network.remotePlayers;
-                Object.keys(remotes).forEach(key => {
-                    const p = remotes[key];
-                    if (hitX < p.x + 24 && hitX + reach > p.x && hitY < p.y + 40 && hitY + hitH > p.y) {
-                        // Visual feedback only, real damage is handled by victim in their update loop?
-                        // Actually, in the current implementation, the VICTIM checks if they are hit by an animation.
-                        // See Game.loop -> Remote Players section.
-                    }
-                });
-            }
-        }
-
-        if (this.dashing) {
-            this.dashTimer--;
-            this.vy = 0;
-            if (this.dashTimer <= 0) {
-                this.dashing = false;
-                this.vx *= 0.2;
-            }
-            if (this.dashTimer % 3 === 0) {
-                Game.particles.push(new Particle(this.x, this.y, 'rgba(255,255,255,0.5)', 0, 0, 10));
-            }
-        } else {
-            this.vy += GRAVITY;
-            if (this.vy > TERMINAL_VELOCITY) this.vy = TERMINAL_VELOCITY;
-        }
-
-        if (this.dashCooldown > 0) this.dashCooldown--;
-        if (this.attackCooldown > 0) this.attackCooldown--;
-        if (this.fireballCooldown > 0) this.fireballCooldown--;
-        if (this.invulnerable > 0) this.invulnerable--;
-        if (this.attacking) this.attackTimer--;
-        if (this.attackTimer <= 0) this.attacking = false;
-
-        this.x += this.vx;
-        this.checkCollisions(map, 'x');
-        this.y += this.vy;
-        this.checkCollisions(map, 'y');
-        
-        // VOID HITKILL (Below Map)
-        if (this.y > 2000) {
-            this.takeDamage(999, this.x, 'void'); // 999 damage = Instant death
-        }
-    }
-
-    checkCollisions(map, axis) {
-        const bounds = this.getBounds();
-        this.grounded = false;
-
-        for (const rect of map) {
-            if (this.x < rect.x + rect.w && this.x + this.w > rect.x &&
-                this.y < rect.y + rect.h && this.y + this.h > rect.y) {
-                
-                if (axis === 'x') {
-                    if (this.vx > 0) this.x = rect.x - this.w;
-                    else if (this.vx < 0) this.x = rect.x + rect.w;
-                    this.vx = 0;
-                } else {
-                    if (this.vy > 0) { 
-                        this.y = rect.y - this.h;
-                        this.grounded = true;
-                        this.vy = 0;
-                    } else if (this.vy < 0) { 
-                        this.y = rect.y + rect.h;
-                        this.vy = 0;
-                    }
-                }
-            }
-        }
-        
-        if (axis === 'y' && !this.grounded && this.vy >= 0) {
-             for (const rect of map) {
-                if (this.x < rect.x + rect.w - 2 && this.x + this.w > rect.x + 2 && 
-                    Math.abs((this.y + this.h) - rect.y) < 2) {
-                    this.grounded = true;
-                    this.y = rect.y - this.h;
-                    this.vy = 0;
-                }
-            }
-        }
-    }
-
-    draw(ctx, camX, camY) {
-        if (this.invulnerable > 0 && Math.floor(Date.now() / 50) % 2 === 0) return; 
-        
-        drawVessel(ctx, this.x - camX, this.y - camY, this.w, this.h, this.facing, this.stretch.x, this.stretch.y, this.attacking, this.healing, false, this.chatTimer > 0 ? this.chatMessage : null, this.cloakColor, this.maskStyle, this.swordStyle, this.outfitStyle, this.heightScale, this.accessoryStyle);
-    }
-}
-
-// Draw Vessel Function (Handles Skins and Chat)
-function drawVessel(ctx, x, y, w, h, facing, scaleX, scaleY, attacking, healing, isRemote, chatMsg, cloakColor, maskStyle, swordStyle, outfitStyle, heightScale, accessoryStyle) {
-    const scale = heightScale || 1.0;
-    const finalH = h * scale;
-    const cx = x + w/2;
-    const cy = y + h; // Pivot bottom
-    
-    ctx.save();
-    
-    // Chat Bubble
-    if (chatMsg) {
-        ctx.font = '12px sans-serif';
-        const metrics = ctx.measureText(chatMsg);
-        const bw = Math.max(metrics.width + 10, 20);
-        const bh = 24;
-        const bx = cx - bw/2;
-        const by = y - (finalH - h) - bh - 10;
-        
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.beginPath();
-        ctx.roundRect(bx, by, bw, bh, 5);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(cx, by + bh);
-        ctx.lineTo(cx - 5, by + bh + 5);
-        ctx.lineTo(cx + 5, by + bh + 5);
-        ctx.fill();
-        ctx.fillStyle = '#000';
-        ctx.textAlign = 'center';
-        ctx.fillText(chatMsg, cx, by + 16);
-    }
-
-    ctx.translate(cx, cy);
-    ctx.scale(facing * scaleX * scale, scaleY * scale);
-    ctx.translate(-cx, -cy);
-
-    // Outfit
-    ctx.fillStyle = cloakColor || COLORS.cloak;
-    ctx.beginPath();
-    const os = outfitStyle || 0;
-    const as = accessoryStyle || 0;
-
-    if (os === 0) { // Cloak
-        ctx.moveTo(cx, y + 15);
-        ctx.lineTo(cx - 12, y + h);
-        ctx.lineTo(cx + 12, y + h);
-    } else if (os === 1) { // Armor
-        ctx.moveTo(cx - 10, y + 15);
-        ctx.lineTo(cx - 10, y + h - 5);
-        ctx.lineTo(cx, y + h);
-        ctx.lineTo(cx + 10, y + h - 5);
-        ctx.lineTo(cx + 10, y + 15);
-        // Shoulder pads
-        ctx.moveTo(cx - 14, y + 15);
-        ctx.lineTo(cx - 6, y + 15);
-        ctx.lineTo(cx - 10, y + 22);
-        ctx.moveTo(cx + 14, y + 15);
-        ctx.lineTo(cx + 6, y + 15);
-        ctx.lineTo(cx + 10, y + 22);
-    } else if (os === 2) { // Robe
-        ctx.moveTo(cx, y + 10);
-        ctx.lineTo(cx - 15, y + h);
-        ctx.lineTo(cx + 15, y + h);
-    } else if (os === 3) { // Grimm Style
-        ctx.moveTo(cx, y + 10);
-        ctx.lineTo(cx - 10, y + h);
-        ctx.lineTo(cx + 10, y + h);
-        // Collar
-        ctx.moveTo(cx - 12, y + 5);
-        ctx.lineTo(cx - 6, y + 15);
-        ctx.lineTo(cx - 14, y + 20);
-        ctx.moveTo(cx + 12, y + 5);
-        ctx.lineTo(cx + 6, y + 15);
-        ctx.lineTo(cx + 14, y + 20);
-    } else if (os === 4) { // Tattered/Shade
-        ctx.moveTo(cx, y + 15);
-        ctx.lineTo(cx - 12, y + h - 5);
-        ctx.lineTo(cx - 8, y + h);
-        ctx.lineTo(cx - 4, y + h - 5);
-        ctx.lineTo(cx, y + h);
-        ctx.lineTo(cx + 4, y + h - 5);
-        ctx.lineTo(cx + 8, y + h);
-        ctx.lineTo(cx + 12, y + h - 5);
-    }
-    ctx.fill();
-    
-    // Armor Detail
-    if (os === 1) {
-        ctx.strokeStyle = '#999';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.rect(cx - 4, y + 25, 8, 10);
-        ctx.stroke();
-    }
-
-    // Accessory (Behind Head)
-    if (as === 1) { // Scarf
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath();
-        ctx.moveTo(cx - 6, y + 12);
-        ctx.quadraticCurveTo(cx - 15, y + 15, cx - 18, y + 25); // Flowing left
-        ctx.lineTo(cx - 12, y + 25);
-        ctx.lineTo(cx - 4, y + 15);
-        ctx.fill();
-    } else if (as === 2) { // Backpack
-        ctx.fillStyle = '#795548';
-        ctx.beginPath();
-        ctx.roundRect(cx - 10, y + 20, 20, 15, 4);
-        ctx.fill();
-        ctx.fillStyle = '#5d4037';
-        ctx.beginPath();
-        ctx.rect(cx - 10, y + 25, 20, 2);
-        ctx.fill();
-    }
-
-    // Head
-    ctx.fillStyle = (os === 4) ? '#111' : (isRemote ? COLORS.otherPlayer : COLORS.player);
-    ctx.beginPath();
-    
-    const mStyle = maskStyle || 0;
-    
-    // Base Face
-    ctx.ellipse(cx, y + 10, 11, 12, 0, 0, Math.PI * 2);
-
-    // Horns / Top
-    if (mStyle == 0) { // Default
-        ctx.moveTo(cx - 8, y);
-        ctx.lineTo(cx - 8, y - 12);
-        ctx.lineTo(cx - 4, y);
-        ctx.moveTo(cx + 8, y);
-        ctx.lineTo(cx + 8, y - 12);
-        ctx.lineTo(cx + 4, y);
-    } else if (mStyle == 1) { // Horns (Curved)
-        ctx.moveTo(cx - 8, y);
-        ctx.quadraticCurveTo(cx - 12, y - 10, cx - 4, y);
-        ctx.moveTo(cx + 8, y);
-        ctx.quadraticCurveTo(cx + 12, y - 10, cx + 4, y);
-    } else if (mStyle == 2) { // Pointy
-        ctx.moveTo(cx - 8, y);
-        ctx.lineTo(cx - 10, y - 15);
-        ctx.lineTo(cx - 4, y);
-        ctx.moveTo(cx + 8, y);
-        ctx.lineTo(cx + 10, y - 15);
-        ctx.lineTo(cx + 4, y);
-    } else if (mStyle == 3) { // Helmet
-        ctx.moveTo(cx - 10, y + 5);
-        ctx.lineTo(cx - 10, y - 10);
-        ctx.quadraticCurveTo(cx, y - 15, cx + 10, y - 10);
-        ctx.lineTo(cx + 10, y + 5);
-    } else if (mStyle == 4) { // Crown
-        ctx.moveTo(cx - 8, y - 2);
-        ctx.lineTo(cx - 10, y - 15);
-        ctx.lineTo(cx - 4, y - 5);
-        ctx.lineTo(cx, y - 15);
-        ctx.lineTo(cx + 4, y - 5);
-        ctx.lineTo(cx + 10, y - 15);
-        ctx.lineTo(cx + 8, y - 2);
-    } else if (mStyle == 5) { // Bandana (Quirrel)
-        ctx.moveTo(cx - 10, y);
-        ctx.lineTo(cx - 10, y - 10);
-        ctx.quadraticCurveTo(cx, y - 5, cx + 10, y - 10);
-        ctx.lineTo(cx + 10, y);
-    } else if (mStyle == 6) { // Broken
-        ctx.moveTo(cx - 8, y);
-        ctx.lineTo(cx - 8, y - 12);
-        ctx.lineTo(cx - 4, y);
-        ctx.moveTo(cx + 8, y);
-        ctx.lineTo(cx + 8, y - 4); // Broken horn
-        ctx.lineTo(cx + 4, y);
-    } else if (mStyle == 7) { // Zote
-        ctx.moveTo(cx - 8, y);
-        ctx.lineTo(cx - 8, y - 15);
-        ctx.lineTo(cx - 4, y - 5);
-        ctx.lineTo(cx, y - 15);
-        ctx.lineTo(cx + 4, y - 5);
-        ctx.lineTo(cx + 8, y - 15);
-        ctx.lineTo(cx + 8, y);
-    }
-
-    ctx.fill();
-
-    // Eyes
-    ctx.fillStyle = (os === 4) ? 'white' : 'black'; // White eyes for Shade
-    ctx.beginPath();
-    if (mStyle == 3) { // Helmet Slit
-        ctx.rect(cx - 6, y + 8, 12, 4);
-    } else if (mStyle == 7) { // Zote (Closed/Angry)
-        ctx.moveTo(cx - 6, y + 8);
-        ctx.lineTo(cx - 2, y + 10);
-        ctx.moveTo(cx + 6, y + 8);
-        ctx.lineTo(cx + 2, y + 10);
-        ctx.stroke();
-        // Mouth
-        ctx.beginPath();
-        ctx.rect(cx - 2, y + 14, 4, 2);
-        ctx.fill();
-    } else {
-        ctx.ellipse(cx - 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
-        ctx.ellipse(cx + 4, y + 10, 3, 5, 0, 0, Math.PI * 2);
-    }
-    ctx.fill();
-    
-    // Accessory (Face/Head)
-    if (as === 3) { // Flower
-        ctx.fillStyle = 'pink';
-        ctx.beginPath();
-        ctx.arc(cx + 8, y + 5, 4, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = 'white';
-        ctx.beginPath();
-        ctx.arc(cx + 8, y + 5, 2, 0, Math.PI*2);
-        ctx.fill();
-    }
-
-    if (attacking) {
-        const sw = swordStyle || 0;
-        
-        ctx.strokeStyle = 'white';
-        ctx.fillStyle = 'white';
-        
-        if (sw === 0) { // Nail
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(cx + 10, y + 20, 30, -Math.PI/2, Math.PI/2);
-            ctx.stroke();
-            ctx.globalAlpha = 0.5;
-            ctx.lineWidth = 10;
-            ctx.stroke();
-        } else if (sw === 1) { // Needle
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(cx + 5, y + 20);
-            ctx.lineTo(cx + 45, y + 20);
-            ctx.stroke();
-            ctx.globalAlpha = 0.5;
-            ctx.lineWidth = 6;
-            ctx.stroke();
-        } else if (sw === 2) { // Greatsword
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.arc(cx + 10, y + 20, 45, -Math.PI/2, Math.PI/2);
-            ctx.stroke();
-            ctx.globalAlpha = 0.5;
-            ctx.lineWidth = 15;
-            ctx.stroke();
-        } else if (sw === 3) { // Scythe
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(cx + 10, y + 30);
-            ctx.quadraticCurveTo(cx + 40, y + 10, cx + 10, y - 20);
-            ctx.stroke();
-            ctx.globalAlpha = 0.5;
-            ctx.lineWidth = 8;
-            ctx.stroke();
-        } else if (sw === 4) { // Blaster
-            ctx.beginPath();
-            ctx.arc(cx + 25, y + 15, 10, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(cx + 25, y + 15);
-            ctx.lineTo(cx + 50, y + 15);
-            ctx.lineWidth = 4;
-            ctx.stroke();
-        }
-        
-        ctx.globalAlpha = 1.0;
-    }
-
-    if (healing) {
-        ctx.fillStyle = 'white';
-        ctx.globalAlpha = 0.6;
-        ctx.beginPath();
-        ctx.arc(cx, y + h/2, 25 + Math.random()*5, 0, Math.PI*2);
-        ctx.fill();
-    }
-
-    ctx.restore();
-}
-
-class Enemy extends Entity {
-    constructor(x, y) {
-        super(x, y, 30, 30);
-        this.speed = 2;
-        this.dir = 1;
-        this.health = 3;
-        this.dead = false;
-    }
-    takeDamage(amount) {
-        this.health -= amount;
-        if (this.health <= 0) this.dead = true;
-    }
-    update(map, player) {
-        if (this.dead) return;
-        this.x += this.speed * this.dir;
-        
-        let hitWall = false;
-        let aboutToFall = true;
-        
-        for (const rect of map) {
-            if (this.x < rect.x + rect.w && this.x + this.w > rect.x && 
-                this.y < rect.y + rect.h && this.y + this.h > rect.y) {
-                hitWall = true;
-            }
-            const checkX = this.dir === 1 ? this.x + this.w : this.x;
-            if (checkX >= rect.x && checkX <= rect.x + rect.w && 
-                this.y + this.h === rect.y) {
-                aboutToFall = false;
-            }
-        }
-        
-        if (hitWall || aboutToFall) {
-            this.dir *= -1;
-            this.x += this.speed * this.dir * 2;
-        }
-
-        if (this.checkCollision(player)) {
-            player.takeDamage(1, this.x);
-        }
-    }
-    draw(ctx, camX, camY) {
-        if (this.dead) return;
-        ctx.fillStyle = COLORS.enemy;
-        ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
-        ctx.fillStyle = 'orange';
-        ctx.fillRect(this.x - camX + (this.dir===1?20:5), this.y - camY + 5, 5, 5);
-    }
-}
-
-class Boss extends Enemy {
-    constructor(x, y) {
-        super(x, y);
-        this.w = 60; this.h = 80;
-        this.health = 40;
-        this.maxHealth = 40;
-        this.attackTimer = 0;
-        this.phase = 0;
-    }
-    update(map, player) {
-        if(this.dead) return;
-        this.attackTimer++;
-        
-        // Simple Boss AI
-        if (this.attackTimer > 100) {
-            // Jump Attack
-            this.vy = -15;
-            this.vx = (player.x < this.x ? -1 : 1) * 8;
-            this.attackTimer = 0;
-        }
-        
-        this.vy += GRAVITY;
-        this.x += this.vx;
-        this.y += this.vy;
-        
-        // Floor Collision
-        for (const rect of map) {
-            if (this.x < rect.x + rect.w && this.x + this.w > rect.x && 
-                this.y < rect.y + rect.h && this.y + this.h > rect.y) {
-                 if (this.vy > 0) {
-                     this.y = rect.y - this.h;
-                     this.vy = 0;
-                     this.vx = 0;
-                     // Shockwave
-                     Game.camera.shake = 10;
-                 }
-            }
-        }
-        
-        if(this.checkCollision(player)) {
-            player.takeDamage(1, this.x);
-        }
-    }
-    draw(ctx, camX, camY) {
-        if(this.dead) return;
-        // Boss Body
-        ctx.fillStyle = '#800';
-        ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
-        // Eyes
-        ctx.fillStyle = '#f00';
-        ctx.beginPath();
-        ctx.arc(this.x - camX + 20, this.y - camY + 20, 5, 0, Math.PI*2);
-        ctx.arc(this.x - camX + 40, this.y - camY + 20, 5, 0, Math.PI*2);
-        ctx.fill();
-        // Health Bar
-        ctx.fillStyle = 'black';
-        ctx.fillRect(this.x - camX, this.y - camY - 20, this.w, 10);
-        ctx.fillStyle = 'red';
-        ctx.fillRect(this.x - camX, this.y - camY - 20, this.w * (this.health/this.maxHealth), 10);
-    }
-}
-
-class Key extends Entity {
-    constructor(x, y) { super(x, y, 20, 20); this.float = 0; }
-    update() { this.float += 0.1; }
-    draw(ctx, camX, camY) {
-        if(this.markedForDeletion) return;
-        const fy = Math.sin(this.float) * 5;
-        ctx.fillStyle = 'gold';
-        ctx.beginPath();
-        ctx.arc(this.x - camX + 10, this.y - camY + 10 + fy, 8, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = 'white';
-        ctx.font = '10px serif';
-        ctx.fillText("KEY", this.x - camX + 2, this.y - camY + 14 + fy);
-    }
-}
-
-class Gate extends Entity {
-    constructor(x, y) { super(x, y, 20, 150); this.open = false; }
-    update() {} // Static
-    draw(ctx, camX, camY) {
-        if(this.open) return;
-        ctx.fillStyle = '#444';
-        ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
-        ctx.fillStyle = '#222';
-        ctx.fillRect(this.x - camX + 5, this.y - camY + 5, 10, this.h - 10);
-        // Lock Icon
-        ctx.fillStyle = 'gold';
-        ctx.beginPath();
-        ctx.arc(this.x - camX + 10, this.y - camY + this.h/2, 6, 0, Math.PI*2);
-        ctx.fill();
-    }
-}
-
-// --- GAME CONTROLLER ---
-const Game = {
-    canvas: document.getElementById('gameCanvas'),
-    ctx: document.getElementById('gameCanvas').getContext('2d'),
-    player: null,
-    enemies: [],
-    fireballs: [],
-    particles: [],
-    map: [],
-    camera: {x: 0, y: 0, shake: 0},
-    running: false,
-    
-    init: () => {
-        Game.resize();
-        window.addEventListener('resize', Game.resize);
-        Input.init();
-        
-        Game.player = new Player(100, 300);
-        // Map loading is now handled by Network or manual start
-        // Game.loadLevel('arena'); 
-
-        // Init Customization UI
-        const colors = document.querySelectorAll('.color-swatch');
-        colors.forEach(c => {
-            c.addEventListener('click', (e) => {
-                colors.forEach(el => el.classList.remove('selected'));
-                e.target.classList.add('selected');
-                Game.player.cloakColor = e.target.dataset.color;
-                Game.previewCustomization();
-            });
-        });
-        
-        // Mask Names
-        const maskNames = ["DEFAULT", "HORNS", "POINTY", "HELMET", "CROWN", "BANDANA", "BROKEN", "ZOTE"];
-        Game.player.maskStyle = 0;
-        document.getElementById('mask-next').addEventListener('click', () => {
-            Game.player.maskStyle = (Game.player.maskStyle + 1) % maskNames.length;
-            document.getElementById('mask-display').innerText = maskNames[Game.player.maskStyle];
-            Game.previewCustomization();
-        });
-        document.getElementById('mask-prev').addEventListener('click', () => {
-            Game.player.maskStyle = (Game.player.maskStyle - 1 + maskNames.length) % maskNames.length;
-            document.getElementById('mask-display').innerText = maskNames[Game.player.maskStyle];
-            Game.previewCustomization();
-        });
-
-        // Outfit Names
-        const outfitNames = ["CLOAK", "ARMOR", "ROBE", "GRIMM", "SHADE"];
-        document.getElementById('outfit-next').addEventListener('click', () => {
-            Game.player.outfitStyle = (Game.player.outfitStyle + 1) % outfitNames.length;
-            document.getElementById('outfit-display').innerText = outfitNames[Game.player.outfitStyle];
-            Game.previewCustomization();
-        });
-        document.getElementById('outfit-prev').addEventListener('click', () => {
-            Game.player.outfitStyle = (Game.player.outfitStyle - 1 + outfitNames.length) % outfitNames.length;
-            document.getElementById('outfit-display').innerText = outfitNames[Game.player.outfitStyle];
-            Game.previewCustomization();
-        });
-
-        // Accessory Names
-        const accNames = ["NONE", "SCARF", "BACKPACK", "FLOWER"];
-        document.getElementById('acc-next').addEventListener('click', () => {
-            Game.player.accessoryStyle = (Game.player.accessoryStyle + 1) % accNames.length;
-            document.getElementById('acc-display').innerText = accNames[Game.player.accessoryStyle];
-            Game.previewCustomization();
-        });
-        document.getElementById('acc-prev').addEventListener('click', () => {
-            Game.player.accessoryStyle = (Game.player.accessoryStyle - 1 + accNames.length) % accNames.length;
-            document.getElementById('acc-display').innerText = accNames[Game.player.accessoryStyle];
-            Game.previewCustomization();
-        });
-
-        // Height
-        document.getElementById('height-next').addEventListener('click', () => {
-            if (Game.player.heightScale < 1.3) Game.player.heightScale += 0.05;
-            document.getElementById('height-display').innerText = Math.round(Game.player.heightScale * 100) + "%";
-            Game.previewCustomization();
-        });
-        document.getElementById('height-prev').addEventListener('click', () => {
-            if (Game.player.heightScale > 0.7) Game.player.heightScale -= 0.05;
-            document.getElementById('height-display').innerText = Math.round(Game.player.heightScale * 100) + "%";
-            Game.previewCustomization();
-        });
-        
-        // Sword Customization
-        const swordNames = ["NAIL", "NEEDLE", "GREATSWORD", "SCYTHE", "BLASTER"];
-        document.getElementById('sword-next').addEventListener('click', () => {
-            Game.player.swordStyle = (Game.player.swordStyle + 1) % swordNames.length;
-            document.getElementById('sword-display').innerText = swordNames[Game.player.swordStyle];
-            Game.previewCustomization();
-        });
-        document.getElementById('sword-prev').addEventListener('click', () => {
-            Game.player.swordStyle = (Game.player.swordStyle - 1 + swordNames.length) % swordNames.length;
-            document.getElementById('sword-display').innerText = swordNames[Game.player.swordStyle];
-            Game.previewCustomization();
-        });
-
-        // Background Upload
-        document.getElementById('bg-upload').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if(file) {
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        Game.customBg = img;
-                        console.log("Custom BG Loaded");
-                    };
-                    img.src = evt.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // Chat Button
-        document.getElementById('chat-send-btn').addEventListener('click', Game.sendChat);
-    },
-    
-    items: [],
-    gates: [],
-    currentLevelIndex: 0,
-    
-    // --- LEVEL DATA ---
-    levels: [
-        // LEVEL 1: FORGOTTEN CROSSROADS
-        {
-            name: "Forgotten Crossroads",
-            color: "#0f0f16",
-            start: {x: 0, y: 400},
-            build: (g) => {
-                // Ground
-                g.map.push({x: -200, y: 500, w: 2000, h: 200});
-                g.map.push({x: -200, y: -500, w: 50, h: 1000}); // Left Wall
-                
-                // Platforms
-                g.map.push({x: 400, y: 350, w: 200, h: 20});
-                g.map.push({x: 700, y: 250, w: 200, h: 20});
-                g.map.push({x: 1000, y: 150, w: 400, h: 20});
-                
-                // Gate Wall
-                g.map.push({x: 1600, y: -500, w: 50, h: 1000}); // Right Wall (Blocked)
-                
-                // Key Item
-                g.items.push(new Key(1200, 100)); // On top platform
-                
-                // Gate
-                g.gates.push(new Gate(1600, 300));
-                
-                // Enemies
-                g.enemies.push(new Enemy(600, 470));
-                g.enemies.push(new Enemy(900, 470));
-                g.enemies.push(new Enemy(1100, 120));
-                
-                // Exit Zone
-                g.exit = {x: 1700, y: 400, w: 100, h: 100};
-            }
-        },
-        // LEVEL 2: CITY OF TEARS
-        {
-            name: "City of Tears",
-            color: "#0a1a2a", // Blue theme
-            start: {x: 0, y: 400},
-            build: (g) => {
-                g.map.push({x: -200, y: 500, w: 500, h: 500}); // Start Floor
-                g.map.push({x: -200, y: -500, w: 50, h: 1000}); // Left Wall
-                
-                // Gap
-                g.map.push({x: 600, y: 400, w: 200, h: 20});
-                g.map.push({x: 900, y: 300, w: 200, h: 20});
-                g.map.push({x: 1200, y: 500, w: 1000, h: 200}); // Main City Floor
-                
-                // Buildings
-                g.map.push({x: 1400, y: 350, w: 100, h: 150}); // Building 1
-                g.map.push({x: 1700, y: 200, w: 100, h: 300}); // Building 2
-                
-                // Upper path
-                g.map.push({x: 1900, y: 100, w: 300, h: 20});
-                
-                // Gate Check
-                g.gates.push(new Gate(2300, 300)); // Gate blocking right
-                g.map.push({x: 2300, y: -500, w: 50, h: 800}); // Wall above gate
-                
-                // Key (Hidden below)
-                g.items.push(new Key(1720, 470)); // Between buildings
-                
-                // Enemies
-                g.enemies.push(new Enemy(1300, 470));
-                g.enemies.push(new Enemy(2000, 70)); // High enemy
-                g.enemies.push(new Enemy(1500, 470)); // Ground patrol
-                
-                g.exit = {x: 2400, y: 400, w: 100, h: 100};
-            }
-        },
-        // LEVEL 3: NIGHTMARE REALM (BOSS)
-        {
-            name: "Nightmare Realm",
-            color: "#2a0a0a", // Red theme
-            start: {x: 100, y: 400},
-            build: (g) => {
-                g.map.push({x: -200, y: 500, w: 1400, h: 200}); // Arena Floor
-                g.map.push({x: -200, y: -500, w: 50, h: 1000}); // Left Wall
-                g.map.push({x: 1200, y: -500, w: 50, h: 1000}); // Right Wall
-                
-                // Platforms
-                g.map.push({x: 200, y: 300, w: 150, h: 20});
-                g.map.push({x: 650, y: 300, w: 150, h: 20});
-                
-                // BOSS
-                const boss = new Boss(800, 350);
-                g.enemies.push(boss);
-                
-                // Exit appears on win? No, just end screen.
-            }
-        }
-    ],
-
-    loadLevel: (mode, levelIndex = 0) => {
-        Game.currentMode = mode;
-        Game.currentLevelIndex = levelIndex;
-        Game.map = [];
-        Game.enemies = [];
-        Game.fireballs = [];
-        Game.particles = [];
-        Game.items = [];
-        Game.gates = [];
-        Game.player.vx = 0; Game.player.vy = 0;
-        Game.player.hasKey = false;
-        
-        Game.sceneTransition();
-
-        if (mode === 'story') {
-            console.log(`Loading Story Level ${levelIndex}...`);
-            const lvl = Game.levels[levelIndex];
-            if(!lvl) return; // End of game?
-            
-            COLORS.bg = lvl.color; // Set Theme
-            Game.player.x = lvl.start.x;
-            Game.player.y = lvl.start.y;
-            
-            lvl.build(Game);
-            
-            // Notification
-            const notif = document.getElementById('notification');
-            notif.innerText = lvl.name;
-            notif.style.opacity = 1;
-            setTimeout(() => notif.style.opacity = 0, 3000);
-
-        } else {
-            console.log("Loading Arena Mode...");
-            COLORS.bg = "#0f0f16";
-            // --- ARENA MAP (Default) ---
-            Game.map.push({x: -800, y: 500, w: 1600, h: 200});
-            Game.map.push({x: -800, y: -500, w: 50, h: 1000});
-            Game.map.push({x: 750, y: -500, w: 50, h: 1000});
-            Game.map.push({x: -800, y: -500, w: 1600, h: 50});
-            
-            Game.map.push({x: -200, y: 350, w: 400, h: 20});
-            Game.map.push({x: -500, y: 200, w: 200, h: 20});
-            Game.map.push({x: 300, y: 200, w: 200, h: 20});
-            Game.map.push({x: -100, y: 50, w: 200, h: 20});
-            
-            Game.player.x = 0; Game.player.y = 400;
-        }
-    },
-
-    previewCustomization: () => {
-        const c = document.getElementById('preview-canvas');
-        const ctx = c.getContext('2d');
-        ctx.clearRect(0,0,120,120);
-        
-        // Adjust preview centering based on height
-        const h = 40 * Game.player.heightScale;
-        const y = 60 + (20 - h/2); 
-        
-        drawVessel(ctx, 60 - 12, y, 24, 40, 1, 1, 1, true, false, false, null, 
-            Game.player.cloakColor, 
-            Game.player.maskStyle, 
-            Game.player.swordStyle,
-            Game.player.outfitStyle,
-            Game.player.heightScale,
-            Game.player.accessoryStyle
-        );
-    },
-
-    startGame: () => {
-        document.getElementById('start-screen').classList.add('hidden');
-        document.getElementById('hud').classList.remove('hidden');
-        Game.running = true;
-        requestAnimationFrame(Game.loop);
-    },
-    
-    resumeGame: () => {
-        document.getElementById('pause-menu').classList.add('hidden');
-        Game.running = true;
-        requestAnimationFrame(Game.loop);
-    },
-    
-    saveGame: () => {
-        const notif = document.getElementById('notification');
-        notif.style.opacity = 1;
-        setTimeout(() => notif.style.opacity = 0, 2000);
-    },
-    
-    toggleChat: (show) => {
-        const chat = document.getElementById('chat-container');
-        const input = document.getElementById('chat-input');
-        
-        if (show) {
-            chat.style.display = 'block';
-            input.value = '';
-            input.focus();
-            Input.active = false;
-            Input.reset();
-        } else {
-            chat.style.display = 'none';
-            Input.active = true;
-            Game.canvas.focus();
-        }
-    },
-    
-    sendChat: () => {
-        const input = document.getElementById('chat-input');
-        const msg = input.value.trim().substring(0, 30);
-        if (msg) {
-            Game.player.chatMessage = msg;
-            Game.player.chatTimer = 300; // 5 seconds
-        }
-        Game.toggleChat(false);
-    },
-    
-    resize: () => {
-        Game.canvas.width = window.innerWidth;
-        Game.canvas.height = window.innerHeight;
-    },
-    
-    sceneTransition: () => {
-        const curtain = document.createElement('div');
-        curtain.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:black;transition:opacity 0.5s;z-index:999;`;
-        document.body.appendChild(curtain);
-        setTimeout(() => curtain.style.opacity = 0, 100);
-        setTimeout(() => curtain.remove(), 600);
-    },
-    
-    updateHUD: () => {
-        const hpBar = document.getElementById('health-bar');
-        hpBar.innerHTML = '';
-        for(let i=0; i<Game.player.maxHealth; i++) {
-            const d = document.createElement('div');
-            d.className = 'mask' + (i >= Game.player.health ? ' broken' : '');
-            hpBar.appendChild(d);
-        }
-        const soulPct = (Game.player.soul / Game.player.maxSoul) * 100;
-        document.getElementById('soul-meter').style.height = soulPct + '%';
-    },
-
-    drawBackground: (ctx, cx, cy) => {
-        if (Game.customBg) {
-            // Draw Custom Image Cover
-            ctx.drawImage(Game.customBg, 0, 0, Game.canvas.width, Game.canvas.height);
-            return;
-        }
-
-        // Simple Parallax
-        const bgY = cy * 0.2;
-        const bgX = cx * 0.2;
-        
-        // Deep Background
-        ctx.fillStyle = '#050510';
-        ctx.fillRect(0, 0, Game.canvas.width, Game.canvas.height);
-
-        // Story Mode Specific Background or Arena
-        const density = Game.currentMode === 'story' ? 20 : 5;
-
-        // Pillars
-        ctx.fillStyle = '#0a0a1a';
-        for(let i=-2; i<10; i++) {
-            ctx.fillRect((i*400) - (bgX%400), 0, 50, Game.canvas.height);
-        }
-
-        // Midground (Silhouettes)
-        ctx.fillStyle = '#111122';
-        for(let i=-5; i<density; i++) {
-             ctx.beginPath();
-             ctx.moveTo(i*300 - (cx*0.3), 1500 - (cy*0.3));
-             ctx.lineTo(i*300 + 150 - (cx*0.3), 0 - (cy*0.3)); 
-             ctx.lineTo(i*300 + 300 - (cx*0.3), 1500 - (cy*0.3));
-             ctx.fill();
-        }
-    },
-
-    loop: () => {
-        if (!Game.running) return;
-        if (Input.pause()) {
-            Game.running = false;
-            document.getElementById('pause-menu').classList.remove('hidden');
-            return;
-        }
-
-        const ctx = Game.ctx;
-        
-        Game.player.update(Game.map, Game.enemies);
-        Game.enemies.forEach(e => e.update(Game.map, Game.player));
-        
-        // Item Logic (Keys)
-        Game.items.forEach(i => {
-            i.update();
-            if (!i.markedForDeletion && Game.player.checkCollision(i)) {
-                i.markedForDeletion = true;
-                Game.player.hasKey = true;
-                // Visual
-                for(let k=0; k<10; k++) Game.particles.push(new Particle(i.x + 10, i.y + 10, 'gold', 0, -2, 30));
-                // Notif
-                const n = document.getElementById('notification');
-                n.innerText = "Key Acquired";
-                n.style.opacity = 1;
-                setTimeout(() => n.style.opacity = 0, 2000);
-            }
-        });
-
-        // Gate Logic
-        Game.gates.forEach(g => {
-            if(!g.open) {
-                // Collision as a wall
-                if (Game.player.checkCollision(g)) {
-                    // Solid collision logic
-                    if (Game.player.x < g.x) Game.player.x = g.x - Game.player.w;
-                    else Game.player.x = g.x + g.w;
-                    
-                    // Unlock check
-                    if (Game.player.hasKey) {
-                        g.open = true;
-                        Game.player.hasKey = false; // Consume key
-                        // Visual
-                        for(let k=0; k<20; k++) Game.particles.push(new Particle(g.x + 10, g.y + g.h/2, '#444', (Math.random()-0.5)*5, (Math.random()-0.5)*5, 40));
-                    } else {
-                         const n = document.getElementById('notification');
-                         n.innerText = "Locked - Need Key";
-                         n.style.opacity = 1;
-                         setTimeout(() => n.style.opacity = 0, 1000);
-                    }
-                }
-            }
-        });
-
-        // Level Exit Logic (Story Mode)
-        if (Game.currentMode === 'story' && Game.exit) {
-             // Hardcode check vs exit rect
-             const exit = Game.exit; // Set in level build
-             // Wait, Game.exit needs to be set in loadLevel logic or levels array
-             const lvl = Game.levels[Game.currentLevelIndex];
-             if (lvl && lvl.exit) {
-                 const ex = lvl.exit;
-                 if (Game.player.x < ex.x + ex.w && Game.player.x + Game.player.w > ex.x &&
-                     Game.player.y < ex.y + ex.h && Game.player.y + Game.player.h > ex.y) {
-                     
-                     // Trigger Next Level (Networked)
-                     if (window.Network && window.Network.connected && Network.roomRef) {
-                         const nextIdx = Game.currentLevelIndex + 1;
-                         if (Game.levels[nextIdx]) {
-                             // Update room settings to next level
-                             import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js").then(({update, child}) => {
-                                 update(child(ref(Network.db, `hk_multiplayer/rooms/${Network.currentRoom}`), 'settings'), {
-                                     levelIndex: nextIdx
-                                 });
-                             });
-                         } else {
-                             // Victory
-                             document.getElementById('winner-announce').innerText = "ADVENTURE COMPLETE";
-                             document.getElementById('winner-announce').style.opacity = 1;
-                         }
-                     }
-                     // Move player back to prevent trigger spam
-                     Game.player.x -= 50; 
-                 }
-             }
-        }
-
-        Game.fireballs.forEach((f, i) => {
-            f.update(Game.map, Game.enemies);
-            if(f.markedForDeletion) Game.fireballs.splice(i, 1);
-        });
-
-        Game.particles.forEach((p, i) => {
-            p.update();
-            if(p.markedForDeletion) Game.particles.splice(i, 1);
-        });
-
-        if (window.Network && window.Network.connected) {
-            window.Network.sendUpdate(Game.player);
-        }
-
-        let targetCamX = Game.player.x + Game.player.w/2 - Game.canvas.width/2;
-        let targetCamY = Game.player.y + Game.player.h/2 - Game.canvas.height/2;
-        
-        Game.camera.x += (targetCamX - Game.camera.x) * 0.1;
-        Game.camera.y += (targetCamY - Game.camera.y) * 0.1;
-        
-        let shakeX = 0, shakeY = 0;
-        if (Game.camera.shake > 0) {
-            shakeX = (Math.random() - 0.5) * Game.camera.shake;
-            shakeY = (Math.random() - 0.5) * Game.camera.shake;
-            Game.camera.shake *= 0.9;
-            if(Game.camera.shake < 0.5) Game.camera.shake = 0;
-        }
-
-        const cx = Game.camera.x + shakeX;
-        const cy = Game.camera.y + shakeY;
-
-        // Draw World
-        Game.drawBackground(ctx, cx, cy);
-
-        ctx.fillStyle = COLORS.platform;
-        ctx.strokeStyle = COLORS.platformBorder;
-        ctx.lineWidth = 2;
-        for (const rect of Game.map) {
-            ctx.fillRect(rect.x - cx, rect.y - cy, rect.w, rect.h);
-            ctx.strokeRect(rect.x - cx, rect.y - cy, rect.w, rect.h);
-        }
-
-        // Remote Players
-        if (window.Network && window.Network.remotePlayers) {
-            Object.keys(window.Network.remotePlayers).forEach(key => {
-                const p = window.Network.remotePlayers[key];
-                const lastState = window.Network.remoteStates[key] || {};
-                
-                // Detect Fireball Rising Edge
-                if (p.fb && !lastState.fb) {
-                    if (window.Network.pvpEnabled) {
-                        const fbX = (p.f || 1) === 1 ? p.x + 29 : p.x - 35;
-                        Game.fireballs.push(new Fireball(fbX, p.y + 10, p.f || 1, true));
-                    } else {
-                        // Visual only
-                        for(let i=0; i<5; i++) Game.particles.push(new Particle(p.x + 12, p.y + 20, 'rgba(200,200,255,0.8)', (p.f||1)*5, 0, 10));
-                    }
-                }
-                
-                // PvP Melee (Incoming Attack)
-                if (window.Network.pvpEnabled && p.a) {
-                    const swordS = p.sw || 0;
-                    let reach = 40;
-                    let hitH = 20;
-                    if (swordS === 2) { reach = 60; hitH = 40; }
-                    if (swordS === 3) { reach = 50; hitH = 30; }
-                    if (swordS === 4) { reach = 100; hitH = 10; }
-
-                    const hitX = (p.f || 1) === 1 ? p.x + 24 : p.x - reach;
-                    const hitY = p.y + 10;
-                    
-                    if (Game.player.x < hitX + reach && Game.player.x + Game.player.w > hitX &&
-                        Game.player.y < hitY + hitH && Game.player.y + Game.player.h > hitY) {
-                         
-                         // Check if this attack ALREADY hit us in this animation frame window? 
-                         // To prevent multi-hit from same swing, we ideally need an attack ID.
-                         // But for simplicity, the invulnerability frame in takeDamage handles this.
-                         if (Game.player.invulnerable <= 0) {
-                             Game.player.takeDamage(1, p.x, key); // Pass attacker key!
-                             
-                             // If I took damage and died, I should probably increment the killer's score?
-                             // But I can't write to their score.
-                             // Logic: If I take damage and die, I update MY 'deaths'.
-                             // No, let's keep it simple. If I die, I update my score to -1? No.
-                             // OK, let's use the 'Attacker' system:
-                             // Since we can't sync accurately, we will just count SURVIVAL rounds?
-                             // No, User wants Kill Count / Rounds.
-                             // Hack: When I die, I increment my own "deaths" stat (if I had one).
-                             // Then Score = Kills. Kills = ?
-                             // Let's implement this: "When I hit someone, I check if they are likely to die."
-                             // If their HP (which I see in snapshot) is 1, and I hit them...
-                             if (p.hp <= 1) {
-                                 // They are likely dead. Increment my score locally and sync it.
-                                 Game.player.score++;
-                                 // Add visual
-                                 Game.particles.push(new Particle(p.x, p.y, 'gold', 0, -2, 40));
-                             }
-                         }
-                    }
-                }
-                
-                window.Network.remoteStates[key] = p;
-
-                const msg = (p.mt && p.mt > 0) ? p.msg : null;
-                drawVessel(ctx, p.x - cx, p.y - cy, 24, 40, p.f || 1, 1, 1, p.a, false, true, msg, p.cc, p.ms, p.sw, p.os, p.hs, p.as);
-
-                ctx.fillStyle = window.Network.pvpEnabled ? '#ffaaaa' : '#aaa';
-                ctx.font = '10px Cinzel';
-                ctx.textAlign = 'center';
-                ctx.fillText(p.n || 'Vessel', p.x - cx + 12, p.y - cy - 10);
-            });
-        }
-
-        Game.gates.forEach(g => g.draw(ctx, cx, cy));
-        Game.items.forEach(i => i.draw(ctx, cx, cy));
-        Game.enemies.forEach(e => e.draw(ctx, cx, cy));
-
-        Game.fireballs.forEach(f => f.draw(ctx, cx, cy));
-
-        Game.player.draw(ctx, cx, cy);
-
-        Game.particles.forEach(p => p.draw(ctx, cx, cy));
-
-        const grad = ctx.createRadialGradient(Game.canvas.width/2, Game.canvas.height/2, 200, Game.canvas.width/2, Game.canvas.height/2, 800);
-        grad.addColorStop(0, 'rgba(0,0,0,0)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.6)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0,0, Game.canvas.width, Game.canvas.height);
-
-        requestAnimationFrame(Game.loop);
-    }
-};
-
-window.Game = Game;
-window.onload = Game.init;
-
-</script>
-</body>
-</html>
+        <div class="hero-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="totalGames">0</div>
+                <div class="stat-label">Jogos</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalPlayers">0</div>
+                <div class="stat-label">Jogadores</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalReviews">0</div>
